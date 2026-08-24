@@ -1,0 +1,19 @@
+{
+  "name": "punkt-cart-and-checkout",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "parcel watch src/frontend/cart.js --dist-dir dist",
+    "build": "parcel build src/frontend/cart.js --dist-dir dist",
+    "dev": "bash scripts/dev.sh"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "Custom cart & checkout logic for a Webflow site (WayForPay payments, Brevo email notifications via Netlify Functions).",
+  "dependencies": {
+    "parcel": "^2.15.4"
+  },
+  "devDependencies": {
+    "netlify-cli": "^27.1.2"
+  }
+}
