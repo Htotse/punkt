@@ -13,7 +13,9 @@
 
 ## Стек і залежності
 
-- **Хостинг/деплой**: GitHub → Netlify (авто-білд і деплой при push, сайт вже підключений через `netlify link`)
+- **Хостинг/деплой**: GitHub (`github.com/Htotse/punkt`) → Netlify, сайт **punkt-shop**
+  (`https://punkt-shop.netlify.app`, admin: `https://app.netlify.com/projects/punkt-shop`),
+  підключений через `netlify link`; авто-білд і деплой при push у `main`
 - **Бекенд**: Netlify Functions (Node.js, серверні функції для checkout/webhook)
 - **Платежі**: WayForPay API (HMAC-підпис рахується на бекенді, ніколи на фронтенді)
 - **Email**: Brevo SMTP (транзакційні листи, логіка на бекенді)
@@ -54,7 +56,7 @@ punkt-cart-and-checkout/
 - Збірка: `npm run build` → `dist/cart.js` (Parcel називає вихідний файл за іменем
   вхідного — `src/frontend/cart.js`). Netlify роздає `dist/` як статику
   (`publish = "dist"` у `netlify.toml`), тому в проді скрипт доступний за
-  `https://<site-name>.netlify.app/cart.js` — саме цей URL вставляється в Webflow
+  `https://punkt-shop.netlify.app/cart.js` — саме цей URL вставляється в Webflow
   custom code як `<script src="...">`
 - Script-теги не підпадають під CORS — підвантаження самого скрипта з іншого домену не проблема
 
