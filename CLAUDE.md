@@ -22,6 +22,13 @@
 - **Frontend bundler**: Parcel 2 (`parcel build` / `parcel watch`)
 - **Мова**: vanilla JavaScript (ES-модулі), без фреймворків і без TypeScript
 - **Локальна розробка**: `netlify-cli` (devDependency) для `netlify dev` і тестового тунелю
+- **Юніт-тести**: `vitest` (devDependency), `npm test` — поки покриває лише чисті функції
+  в `src/frontend/utils/wfp.js` (payload для WayForPay); DOM-логіку в `cart.js` юніт-тестами
+  не покриваємо (для цього краще E2E)
+- **Playwright MCP**: підключений локально для цього проєкту (`claude mcp add playwright npx @playwright/mcp@latest`,
+  local scope) — дає змогу керувати реальним браузером під час сесії: перевіряти
+  `test/local-preview.html` (клік по кнопках кошика), а також заповнювати форму
+  генератора тестового підпису WFP і читати обчислене JS значення `merchantSignature`
 
 > Примітка: глобальні правила користувача (React 18, Radix UI тощо) стосуються інших
 > проектів. Тут стек навмисно інший — vanilla JS, бо код вбудовується в Webflow як

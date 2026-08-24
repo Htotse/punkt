@@ -2,7 +2,7 @@
   "name": "punkt-cart-and-checkout",
   "version": "1.0.0",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
     "start": "parcel watch src/frontend/cart.js --dist-dir dist",
     "build": "parcel build src/frontend/cart.js --dist-dir dist",
     "dev": "bash scripts/dev.sh"
@@ -14,6 +14,7 @@
     "parcel": "^2.15.4"
   },
   "devDependencies": {
-    "netlify-cli": "^27.1.2"
+    "netlify-cli": "^27.1.2",
+    "vitest": "^3.2.7"
   }
 }
