@@ -151,13 +151,13 @@ window.Webflow.push(() => {
 
         container.innerHTML += `
           <div data-cart="product" class="cart_product_wr" data-index="${index}">
-            <div class="cart_product_img_wr">
-              <img src="${item.imgSrc}" loading="lazy" alt="" class="cart_product_img">
-            </div>
-            <div class="cart_product_info_wr">
+            <a class="cart_product_img_wr" href="${item.productPageLink}" >
+              <img src="${item.imgSrc}" loading="lazy" alt="Обкладинка книги ${item.name}" class="cart_product_img">
+            </a>
+            <a class="cart_product_info_wr" href="${item.productPageLink}">
               <div class="cart_product_author">${item.authorName || ""}</div>
               <div class="cart_product_name">${item.name}</div>
-            </div>
+            </a>
             <div class="cart_product_quantity_wr flex-wrap">
               <div class="cart_product_quantity_text">Кількість</div>
               <div class="cart_quantity_counter_wr">
