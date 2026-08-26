@@ -4,5 +4,6 @@
   functions = "netlify/functions"
 
 [dev]
+  framework = "#static"
   publish = "dist"
   functions = "netlify/functions"

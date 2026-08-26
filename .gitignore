@@ -11,6 +11,7 @@ dist/
 
 # ✅ Netlify CLI (локальний стан/кеш, не netlify/functions!)
 .netlify/
+deno.lock
 
 # ✅ VS Code специфічні файли
 .vscode/
@@ -23,3 +24,6 @@ dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# ✅ Playwright MCP (сесійні артефакти дебагу)
+.playwright-mcp/

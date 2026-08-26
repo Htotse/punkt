@@ -14,7 +14,7 @@ window.Webflow.push(() => {
 
   // Сторінка кошика, куди редіректити після додавання товару (заповнити перед деплоєм)
   // const CART_PAGE_URL = "https://www.saule-objects.com/cart";
-  const CART_PAGE_URL = "";
+  const CART_PAGE_URL = "https://punkt-otse.webflow.io/cart";
 
   // ==============================
   // ДОДАВАННЯ / ІНКРЕМЕНТ / ДЕКРЕМЕНТ / ВИДАЛЕННЯ
@@ -27,28 +27,26 @@ window.Webflow.push(() => {
     }
 
     const rawName = product.dataset.name;
+    const authorName = product.dataset.author;
     const imgSrc = product.dataset.imgSrc;
     const productPageLink = product.dataset.productPage;
     const rawPrice = product.dataset.price || "";
     const price = parseInt(rawPrice.replace(/[^\d]/g, ""), 10);
-
-    const rawSize = product.dataset.productSize;
-    const size = !rawSize || rawSize === "undefined" || rawSize === "null" ? "" : rawSize;
 
     if (!rawName || Number.isNaN(price)) {
       console.warn("addToCart: відсутні name/price у data-* атрибутах", { rawName, rawPrice });
       return;
     }
 
-    const name = size ? `${rawName}, ${size}` : rawName;
+    const name = rawName;
     const cart = getCartWithExpiry();
 
     const existing = cart.find(
-      (item) => item.rawName === rawName && item.price === price && item.size === size
+      (item) => item.name === rawName && item.price === price
     );
 
     if (existing) existing.cnt += 1;
-    else cart.push({ rawName, name, imgSrc, price, cnt: 1, productPageLink, size });
+    else cart.push({ name, authorName, imgSrc, price, cnt: 1, productPageLink });
 
     setCartWithExpiry(cart);
     renderCart();
@@ -62,29 +60,11 @@ window.Webflow.push(() => {
     if (btn.tagName === "A") e.preventDefault();
     addToCart(btn);
     // редірект на сторінку кошика після додавання (лише якщо URL заданий)
-    if (CART_PAGE_URL) {
-      setTimeout(() => {
-        window.location.href = CART_PAGE_URL;
-      }, 100);
-    }
-  });
-
-  // Інкремент/декремент
-  document.addEventListener("click", (e) => {
-    const plus = e.target.closest(".plus-btn");
-    if (plus) {
-      const wrap = plus.closest(".summary-product");
-      const index = wrap ? Number(wrap.dataset.index) : -1;
-      if (index >= 0) incrementItem(index);
-      return;
-    }
-    const minus = e.target.closest(".minus-btn");
-    if (minus) {
-      const wrap = minus.closest(".summary-product");
-      const index = wrap ? Number(wrap.dataset.index) : -1;
-      if (index >= 0) decrementItem(index);
-      return;
-    }
+    // if (CART_PAGE_URL) {
+    //   setTimeout(() => {
+    //     window.location.href = CART_PAGE_URL;
+    //   }, 100);
+    // }
   });
 
   function incrementItem(index) {
@@ -107,22 +87,41 @@ window.Webflow.push(() => {
   }
 
   // Видалення
-  function removeFromCart(index) {
-    const cart = getCartWithExpiry();
-    if (index < 0 || index >= cart.length) return;
-    cart.splice(index, 1);
-    setCartWithExpiry(cart);
-    renderCart();
-    updateGlobalCartQuantity();
-  }
+  // function removeFromCart(index) {
+  //   const cart = getCartWithExpiry();
+  //   if (index < 0 || index >= cart.length) return;
+  //   cart.splice(index, 1);
+  //   setCartWithExpiry(cart);
+  //   renderCart();
+  //   updateGlobalCartQuantity();
+  // }
 
-  document.addEventListener("click", (e) => {
-    const btn = e.target.closest(".remove-btn");
-    if (!btn) return;
-    e.preventDefault();
-    const wrap = btn.closest(".summary-product");
-    const index = wrap ? Number(wrap.dataset.index) : -1;
-    if (index >= 0) removeFromCart(index);
+  // Делегування кліків усередині кошика: +/-/видалення
+  const cartContainer = document.getElementById("cart-product-list");
+  cartContainer?.addEventListener("click", (e) => {
+    const plus = e.target.closest('[data-cart="plus-btn"]');
+    if (plus) {
+      const wrap = plus.closest('[data-cart="product"]');
+      const index = wrap ? Number(wrap.dataset.index) : -1;
+      if (index >= 0) incrementItem(index);
+      return;
+    }
+
+    const minus = e.target.closest('[data-cart="minus-btn"]');
+    if (minus) {
+      const wrap = minus.closest('[data-cart="product"]');
+      const index = wrap ? Number(wrap.dataset.index) : -1;
+      if (index >= 0) decrementItem(index);
+      return;
+    }
+
+    // const removeBtn = e.target.closest(".remove-btn");
+    // if (removeBtn) {
+    //   e.preventDefault();
+    //   const wrap = removeBtn.closest(".summary-product");
+    //   const index = wrap ? Number(wrap.dataset.index) : -1;
+    //   if (index >= 0) removeFromCart(index);
+    // }
   });
 
   // ==============================
@@ -130,8 +129,8 @@ window.Webflow.push(() => {
   // ==============================
   function renderCart() {
     const cart = getCartWithExpiry();
-    const container = document.getElementById("cart-container");
-    const cartBottom = document.querySelector(".cart-bottom");
+    const container = document.getElementById("cart-product-list");
+    const cartBottom = document.getElementById("cart-bottom");
 
     if (!container) return;
     container.innerHTML = "";
@@ -139,9 +138,9 @@ window.Webflow.push(() => {
 
     if (cart.length === 0) {
       container.innerHTML += `
-        <div class="cart-inner-empty-wrap">
-          <p class="cart-inner-empty-text">Your cart is empty</p>
-          <a href="" class="checkout-button-empty">Discover all products</a>
+        <div class="cart_inner_empty_wrap">
+          <p class="cart_inner_empty_text">Кошик порожній</p>
+          <a href="/" class="checkout_button_empty">Перейти до каталогу</a>
         </div>
       `;
       if (cartBottom) cartBottom.style.display = "none";
@@ -151,47 +150,51 @@ window.Webflow.push(() => {
         total += itemTotal;
 
         container.innerHTML += `
-          <div class="summary-product" data-index="${index}">
-            <a class="sum-image-wrap" href="${item.productPageLink}">
-              <div>
-                <img src="${item.imgSrc}" loading="lazy" alt="" class="product-min-image">
-              </div>
-            </a>
-            <div class="sum-info">
-              <div class="sum-col">
-                <div class="sum-product-name">${item.name}</div>
-                <div class="flex-wrap">
-                  <span class="dollar">€</span>
-                  <p class="sum-price">${item.price}</p>
+          <div data-cart="product" class="cart_product_wr" data-index="${index}">
+            <div class="cart_product_img_wr">
+              <img src="${item.imgSrc}" loading="lazy" alt="" class="cart_product_img">
+            </div>
+            <div class="cart_product_info_wr">
+              <div class="cart_product_author">${item.authorName || ""}</div>
+              <div class="cart_product_name">${item.name}</div>
+            </div>
+            <div class="cart_product_quantity_wr flex-wrap">
+              <div class="cart_product_quantity_text">Кількість</div>
+              <div class="cart_quantity_counter_wr">
+                <div data-cart="minus-btn" class="minus_btn_wr">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 24 24" fill="none"><path d="M15.4559 12.648H8.54395V11.352H15.4559V12.648Z" fill="currentColor"></path></svg>
+                </div>
+                <div class="cart_product_qantity">${item.cnt}</div>
+                <div data-cart="plus-btn" class="plus_btn_wr">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 24 24" fill="none"><path d="M15.4559 12.648H8.54395V11.352H15.4559V12.648Z" fill="currentColor"></path><path d="M11.3515 15.456L11.3515 8.54398L12.6475 8.54398L12.6475 15.456L11.3515 15.456Z" fill="currentColor"></path></svg>
                 </div>
               </div>
-              <div class="sum-col is-02">
-                <div class="flex-wrap">
-                  <p>Quantity:</p>
-                  <div class="quantity-wrap">
-                    <div class="minus-btn"><p>-</p></div>
-                    <span class="quantity">${item.cnt}</span>
-                    <div class="plus-btn"><p>+</p></div>
-                  </div>
-                </div>
-                <button type="button" class="remove-btn" aria-label="Remove from cart">Remove</button>
-              </div>
+            </div>
+            <div class="cart_product_price_wr flex-wrap">
+              <div>${item.price}</div>
+              <div class="currency_text">UAH</div>
             </div>
           </div>
         `;
       });
 
-      if (cartBottom) cartBottom.style.display = "block";
+      if (cartBottom) cartBottom.style.display = "flex";
     }
 
-    const checkoutPriceEl = document.querySelector(".checkout-cost");
+    const checkoutPriceEl = document.getElementById("cart-subtotal-num");
     if (checkoutPriceEl) checkoutPriceEl.textContent = `${total}`;
   }
 
   function updateGlobalCartQuantity() {
     const cart = getCartWithExpiry();
     const totalItems = cart.reduce((sum, item) => sum + item.cnt, 0);
-    document.querySelectorAll(".cart-quantity").forEach((el) => {
+    const cartQuantityEl = document.querySelectorAll('[data-cart-button="quantity-el"]');
+    const cartQuantityNums = document.querySelectorAll('[data-cart-button="quantity-number"]');
+
+    cartQuantityEl.forEach((el) => {
+      el.style.display = cart.length === 0 ? "none" : "flex";
+    });
+    cartQuantityNums.forEach((el) => {
       el.textContent = totalItems;
     });
   }
@@ -249,7 +252,7 @@ window.Webflow.push(() => {
 
   // Клік по кнопці оформлення замовлення
   document.addEventListener("click", (e) => {
-    const btn = e.target.closest(".checkout-button");
+    const btn = e.target.closest(".checkout_button");
     if (!btn) return;
     e.preventDefault();
     submitOrder();
