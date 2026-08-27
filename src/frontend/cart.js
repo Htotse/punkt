@@ -8,9 +8,12 @@ window.Webflow ||= [];
 window.Webflow.push(() => {
   const ENABLE_AUTO_REDIRECT = true;
 
-  // Бекенд (Netlify Function), який рахує HMAC і викликає WayForPay offline
-  // const CHECKOUT_ENDPOINT = "https://saule-backend.netlify.app/.netlify/functions/checkout";
-  const CHECKOUT_ENDPOINT = "";
+  // Бекенд (Netlify Function), який рахує HMAC і викликає WayForPay offline.
+  // Parcel підставляє CHECKOUT_ENDPOINT на етапі збірки з env-змінної (.env локально,
+  // Netlify env vars у проді) — див. .env.example. Прод-URL нижче лише запасний дефолт
+  // на випадок, якщо змінна не задана під час білду.
+  const CHECKOUT_ENDPOINT =
+    process.env.CHECKOUT_ENDPOINT || "https://punkt-shop.netlify.app/.netlify/functions/checkout";
 
   // Сторінка кошика, куди редіректити після додавання товару (заповнити перед деплоєм)
   // const CART_PAGE_URL = "https://www.saule-objects.com/cart";

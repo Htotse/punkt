@@ -1,6 +1,6 @@
 // Хелпери для формування payload WayForPay (Purchase) та POST-фолбеку
 
-const WFP_CURRENCY = "EUR";
+const WFP_CURRENCY = "UAH";
 const WFP_DEFAULT_PSP = "card";
 const WFP_PAYMENT_SYSTEMS = "card;googlePay;applePay";
 const WFP_DELIVERY_LIST = "nova;nova_pl;other";

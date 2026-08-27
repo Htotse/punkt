@@ -49,7 +49,9 @@ punkt-cart-and-checkout/
 │       │   └── wfp.js           # payload для WayForPay, postViaForm fallback
 │       └── styles/             # кастомні стилі кошика (поки порожньо)
 ├── netlify/
-│   └── functions/              # серверні Netlify Functions (TODO — див. нижче)
+│   └── functions/
+│       ├── checkout.js         # Purchase: рахує HMAC-підпис, offline-запит з fallback на form POST
+│       └── wfp-callback.js     # serviceUrl webhook: перевірка підпису колбеку, ACK-відповідь WFP
 ├── test/
 │   └── local-preview.html      # HTML-харнес для локального тестування без Webflow
 └── dist/                       # build output Parcel (у .gitignore)
@@ -67,21 +69,29 @@ punkt-cart-and-checkout/
   custom code як `<script src="...">`
 - Script-теги не підпадають під CORS — підвантаження самого скрипта з іншого домену не проблема
 
-## Backend-конвенції (netlify/functions) — TODO
-
-Файли бекенду ще не додані, будуть у наступній сесії. Обов'язкові вимоги на майбутнє:
+## Backend-конвенції (netlify/functions)
 
 - Кожна функція — окремий файл у `netlify/functions/`
 - HMAC-підпис WayForPay рахується **лише на бекенді**, ніколи у фронтенд-коді
 - **CORS**: на відміну від `<script src>`, виклик `fetch(CHECKOUT_ENDPOINT)` з `cart.js`
   до Netlify Function — це cross-origin XHR-запит (домен Webflow ≠ домен Netlify).
   Кожна функція має повертати `Access-Control-Allow-Origin` з дозволеним доменом
-  Webflow-сайту, інакше запит впаде через CORS
+  Webflow-сайту, інакше запит впаде через CORS. `checkout.js` вже підставляє
+  `WFP_MERCHANT_DOMAIN` замість wildcard, якщо змінна задана — див. TODO нижче
+  щодо самого домену
 - `netlify/functions/` **комітиться в git** (на відміну від `.netlify/`, яку ігнорує git) —
   саме так GitHub → Netlify інтеграція деплоїть функції автоматично при push
-- Очікувані функції: `checkout` (створення платіжної сесії WFP), `wfp-callback`/webhook
-  (обробка серверного колбеку WFP, перевірка підпису), відправка email через Brevo SMTP
-  після успішної оплати
+- `checkout.js` — створення платіжної сесії WFP (Purchase, offline-режим з fallback на
+  form POST). `wfp-callback.js` — обробка серверного колбеку WFP (`serviceUrl`), перевірка
+  підпису, ACK-відповідь. Секрет для обох береться через `WFP_TEST_MODE`-перемикач
+  (`WFP_SECRET_KEY` для live / `WFP_TEST_SECRET_KEY` для тестового режиму) — обидві функції
+  мають лишатись синхронізованими за цим прапорцем, інакше підпис на checkout і перевірка
+  на callback розійдуться
+- `wfp-callback.js` опційно форвардить нормалізований payload колбеку у зовнішню
+  автоматизацію (напр. Make.com) — вимкнено за замовчуванням, активується лише якщо
+  задано `MAKE_WEBHOOK_URL`
+- Відправка email через Brevo SMTP після успішної оплати — ще не реалізована,
+  див. TODO нижче
 
 ## Env-змінні
 
@@ -116,6 +126,10 @@ npm run dev
 Push у `main` на GitHub → Netlify автоматично білдить (`npm run build` з `netlify.toml`)
 і деплоїть і статику (`dist/`), і функції (`netlify/functions/`). Ручний деплой не потрібен.
 
+**Перед публікацією на прод з реальними клієнтськими токенами WFP** — пройтись за
+чеклістом [`PROD_CHECKLIST.md`](./PROD_CHECKLIST.md) (env-змінні в Netlify UI, заміна
+`CHECKOUT_ENDPOINT`/CORS з локальних/sandbox значень на прод, Brevo).
+
 ## Конвенції коду/гіту (успадковано з глобального CLAUDE.md)
 
 - Commit-повідомлення: `type: короткий опис` (`feat:`, `fix:`, `refactor:`, `chore:`)
@@ -127,8 +141,10 @@ Push у `main` на GitHub → Netlify автоматично білдить (`n
 
 ## Відкриті питання / TODO
 
-- [ ] Файли бекенду: `checkout.js`, `wfp-callback.js` (webhook), спільні утиліти (HMAC-підпис, Brevo-клієнт)
+- [ ] Спільна утиліта Brevo-клієнта + виклик у `wfp-callback.js` після успішної оплати
+  (`success && isSignatureValid`) — зараз там лише TODO-коментар
 - [ ] Точний домен Webflow-сайту для `WFP_MERCHANT_DOMAIN` і CORS allow-list
+  (`checkout.js` вже готовий підставити його замість `*`, щойно значення відоме)
 - [ ] `CHECKOUT_ENDPOINT` у `src/frontend/cart.js` — зараз порожній, заповнити після деплою першої функції
 - [ ] `CART_PAGE_URL` у `src/frontend/cart.js` — зараз порожній (редірект після додавання в кошик вимкнено), заповнити продовим URL сторінки кошика перед деплоєм
 - [ ] Формат і вміст email-шаблонів Brevo (підтвердження замовлення)
