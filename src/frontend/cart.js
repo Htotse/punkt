@@ -67,22 +67,53 @@ window.Webflow.push(() => {
     // }
   });
 
+  function updateItemQuantityInDom(itemIndex, updatedCart) {
+    const productElement = cartContainer?.querySelector(
+      `[data-cart="product"][data-index="${itemIndex}"]`
+    );
+    const quantityElement = productElement?.querySelector(".cart_product_qantity");
+
+    if (!productElement || !quantityElement) {
+      renderCart();
+      return;
+    }
+
+    quantityElement.textContent = updatedCart[itemIndex].cnt;
+    updateCartTotalPrice(updatedCart);
+  }
+
+  function updateCartTotalPrice(cart) {
+    const totalPrice = cart.reduce((sum, item) => sum + item.price * item.cnt, 0);
+    const totalPriceElement = document.getElementById("cart-subtotal-num");
+    if (totalPriceElement) totalPriceElement.textContent = `${totalPrice}`;
+  }
+
   function incrementItem(index) {
     const cart = getCartWithExpiry();
     if (index < 0 || index >= cart.length) return;
+
     cart[index].cnt += 1;
     setCartWithExpiry(cart);
-    renderCart();
+
+    updateItemQuantityInDom(index, cart);
     updateGlobalCartQuantity();
   }
 
   function decrementItem(index) {
     const cart = getCartWithExpiry();
     if (index < 0 || index >= cart.length) return;
-    if (cart[index].cnt > 1) cart[index].cnt -= 1;
-    else cart.splice(index, 1);
-    setCartWithExpiry(cart);
-    renderCart();
+
+    if (cart[index].cnt > 1) {
+      cart[index].cnt -= 1;
+      setCartWithExpiry(cart);
+
+      updateItemQuantityInDom(index, cart);
+    } else {
+      cart.splice(index, 1);
+      setCartWithExpiry(cart);
+      renderCart();
+    }
+
     updateGlobalCartQuantity();
   }
 

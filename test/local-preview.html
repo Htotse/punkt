@@ -6,30 +6,37 @@
   <style>
     body { font-family: sans-serif; padding: 24px; max-width: 640px; margin: 0 auto; }
     .product { border: 1px solid #ddd; padding: 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-    .summary-product { border-bottom: 1px solid #eee; padding: 8px 0; display: flex; justify-content: space-between; }
-    .quantity-wrap { display: inline-flex; gap: 8px; align-items: center; }
-    .checkout-button { margin-top: 16px; padding: 8px 16px; }
+    .cart_product_wr { border-bottom: 1px solid #eee; padding: 8px 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .cart_quantity_counter_wr { display: inline-flex; gap: 8px; align-items: center; }
+    .minus_btn_wr, .plus_btn_wr { width: 20px; cursor: pointer; border: 1px solid #ccc; text-align: center; }
+    .checkout_button { margin-top: 16px; padding: 8px 16px; }
   </style>
 </head>
 <body>
   <h1>Каталог (тестові товари)</h1>
 
-  <div class="product" data-name="Vase A" data-price="120" data-img-src="" data-product-page="#" data-product-size="S">
-    <span>Vase A, S — €120</span>
+  <div class="product" data-name="Vase A" data-price="120" data-img-src="" data-product-page="#" data-author="Studio X">
+    <span>Vase A — €120</span>
     <a href="#" class="js-add-to-cart">Add to cart</a>
   </div>
 
-  <div class="product" data-name="Vase B" data-price="85" data-img-src="" data-product-page="#" data-product-size="">
+  <div class="product" data-name="Vase B" data-price="85" data-img-src="" data-product-page="#" data-author="Studio Y">
     <span>Vase B — €85</span>
     <a href="#" class="js-add-to-cart">Add to cart</a>
   </div>
 
   <h1>Кошик</h1>
-  <p>Товарів у кошику: <span class="cart-quantity">0</span></p>
-  <div id="cart-container"></div>
-  <div class="cart-bottom" style="display:none;">
-    <p>Разом: €<span class="checkout-cost">0</span></p>
-    <button class="checkout-button">Checkout</button>
+  <p>
+    Товарів у кошику:
+    <span data-cart-button="quantity-el" style="display:none;">
+      <span data-cart-button="quantity-number">0</span>
+    </span>
+  </p>
+
+  <div id="cart-product-list"></div>
+  <div id="cart-bottom" style="display:none;">
+    <p>Разом: €<span id="cart-subtotal-num">0</span></p>
+    <button class="checkout_button">Checkout</button>
   </div>
 
   <!-- Заглушка Webflow-рушія: на реальному сайті Webflow сам виконує чергу
