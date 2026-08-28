@@ -62,7 +62,7 @@ describe("buildWfpPayload", () => {
     const payload = buildWfpPayload(cart);
 
     expect(payload.amount).toBe("290.00"); // 120*1 + 85*2
-    expect(payload.currency).toBe("EUR");
+    expect(payload.currency).toBe("UAH");
     expect(payload.productName).toEqual(["Vase A, S", "Vase B"]);
     expect(payload.productPrice).toEqual(["120.00", "85.00"]);
     expect(payload.productCount).toEqual(["1", "2"]);
