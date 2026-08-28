@@ -3,6 +3,7 @@
 
 import { getCartWithExpiry, setCartWithExpiry } from "./utils/cart-storage.js";
 import { buildWfpPayload, postViaForm } from "./utils/wfp.js";
+import { fetchWithRetry } from "./utils/fetch-with-retry.js";
 
 window.Webflow ||= [];
 window.Webflow.push(() => {
@@ -236,60 +237,74 @@ window.Webflow.push(() => {
   // ==============================
   // ЧЕК-АУТ
   // ==============================
-  function submitOrder() {
-    const cart = getCartWithExpiry();
-    if (cart.length === 0) {
-      alert("Ваш кошик порожній!");
-      return;
+  function setCheckoutButtonLoading(btn, isLoading) {
+    if (isLoading) {
+      btn.dataset.originalText = btn.textContent;
+      btn.textContent = "Обробка...";
+      btn.disabled = true;
+    } else {
+      btn.textContent = btn.dataset.originalText || btn.textContent;
+      btn.disabled = false;
     }
+  }
 
+  async function submitOrder(btn) {
+    const cart = getCartWithExpiry();
     const wfpPayload = buildWfpPayload(cart);
 
-    fetch(CHECKOUT_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        provider: "wayforpay",
-        wfp: wfpPayload, // бек рахує merchantSignature та викликає offline
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        console.log("Відповідь з Netlify (checkout):", data);
-
-        // A) Offline-режим — отримали URL для оплати
-        if (data && data.mode === "offline" && data.payUrl) {
-          console.log("payUrl:", data.payUrl);
-          if (ENABLE_AUTO_REDIRECT) {
-            window.location.href = data.payUrl; // редірект на платіжну сторінку
-          }
-          return;
-        }
-
-        // B) Fallback — бек повернув поля для стандартного HTML POST
-        if (data && data.mode === "form" && data.wfp?.actionUrl && data.wfp?.fields) {
-          console.log("Fallback to form POST:", data.wfp);
-          if (ENABLE_AUTO_REDIRECT) {
-            postViaForm(data.wfp.actionUrl, data.wfp.fields);
-          }
-          return;
-        }
-
-        console.error("Не отримано даних для оплати WayForPay:", data);
-        alert("Не вдалося ініціювати оплату. Спробуйте ще раз.");
-      })
-      .catch((err) => {
-        console.error("Помилка оформлення замовлення (WayForPay):", err);
-        alert("Не вдалося створити замовлення. Спробуйте ще раз.");
+    try {
+      const res = await fetchWithRetry(CHECKOUT_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: "wayforpay",
+          wfp: wfpPayload, // бек рахує merchantSignature та викликає offline
+        }),
       });
+      const data = await res.json();
+      console.log("Відповідь з Netlify (checkout):", data);
+
+      // A) Offline-режим — отримали URL для оплати
+      if (data && data.mode === "offline" && data.payUrl) {
+        console.log("payUrl:", data.payUrl);
+        if (ENABLE_AUTO_REDIRECT) {
+          window.location.href = data.payUrl; // редірект на платіжну сторінку
+        }
+        return;
+      }
+
+      // B) Fallback — бек повернув поля для стандартного HTML POST
+      if (data && data.mode === "form" && data.wfp?.actionUrl && data.wfp?.fields) {
+        console.log("Fallback to form POST:", data.wfp);
+        if (ENABLE_AUTO_REDIRECT) {
+          postViaForm(data.wfp.actionUrl, data.wfp.fields);
+        }
+        return;
+      }
+
+      console.error("Не отримано даних для оплати WayForPay:", data);
+      alert("Не вдалося ініціювати оплату. Спробуйте ще раз.");
+      setCheckoutButtonLoading(btn, false);
+    } catch (err) {
+      console.error("Помилка оформлення замовлення (WayForPay):", err);
+      alert("Не вдалося створити замовлення. Спробуйте ще раз.");
+      setCheckoutButtonLoading(btn, false);
+    }
   }
 
   // Клік по кнопці оформлення замовлення
   document.addEventListener("click", (e) => {
     const btn = e.target.closest(".checkout_button");
-    if (!btn) return;
+    if (!btn || btn.disabled) return;
     e.preventDefault();
-    submitOrder();
+
+    if (getCartWithExpiry().length === 0) {
+      alert("Ваш кошик порожній!");
+      return;
+    }
+
+    setCheckoutButtonLoading(btn, true);
+    submitOrder(btn);
   });
 
   // Ініціалізація

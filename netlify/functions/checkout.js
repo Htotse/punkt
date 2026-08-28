@@ -2,6 +2,7 @@
 // Важливо: merchantAccount / merchantDomainName / secret беремо лише з ENV!
 
 import crypto from "crypto";
+import { validateWfpPayload } from "./utils/validate-wfp.js";
 
 export async function handler(event) {
   const allowOrigin = process.env.CORS_ALLOWED_ORIGIN || "*";
@@ -70,6 +71,16 @@ export async function handler(event) {
         statusCode: 400,
         headers: cors,
         body: JSON.stringify({ error: "productName/productPrice/productCount must be arrays of equal length" }),
+      };
+    }
+
+    // ---- Типи/діапазони + узгодженість amount із productPrice/productCount
+    const validationErrors = validateWfpPayload(wfp);
+    if (validationErrors.length > 0) {
+      return {
+        statusCode: 400,
+        headers: cors,
+        body: JSON.stringify({ error: "Invalid payload", details: validationErrors }),
       };
     }
 

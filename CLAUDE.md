@@ -141,6 +141,11 @@ Push у `main` на GitHub → Netlify автоматично білдить (`n
 
 ## Відкриті питання / TODO
 
+- [ ] Захист від підміни ціни товару — `checkout.js` звіряє лише внутрішню
+  узгодженість payload (`amount` vs `productPrice × productCount`), але не має
+  серверного джерела правди по цінах, тож клієнт технічно може занизити ціну через
+  localStorage/DOM перед відправкою. Деталі й варіант рішення — `PROD_CHECKLIST.md`,
+  розділ 5. Обов'язково закрити перед продом з реальними платежами
 - [ ] Спільна утиліта Brevo-клієнта + виклик у `wfp-callback.js` після успішної оплати
   (`success && isSignatureValid`) — зараз там лише TODO-коментар
 - [ ] Точний домен Webflow-сайту для `WFP_MERCHANT_DOMAIN` і CORS allow-list
