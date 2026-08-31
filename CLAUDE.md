@@ -9,7 +9,8 @@
 Функціонал:
 - Кошик у `localStorage` (з TTL 3 дні): додавання, +/-, видалення, рендер
 - Ініціація оплати через **WayForPay** (Purchase, offline-режим з підписом на бекенді)
-- Підтвердження замовлень / email-сповіщення через **Brevo SMTP** (бекенд, буде додано)
+- Підтвердження замовлень / email-сповіщення через **Brevo Transactional Email API**
+  (бекенд, `netlify/functions/utils/brevo.js`, викликається з `wfp-callback.js`)
 
 ## Стек і залежності
 
@@ -18,7 +19,12 @@
   підключений через `netlify link`; авто-білд і деплой при push у `main`
 - **Бекенд**: Netlify Functions (Node.js, серверні функції для checkout/webhook)
 - **Платежі**: WayForPay API (HMAC-підпис рахується на бекенді, ніколи на фронтенді)
-- **Email**: Brevo SMTP (транзакційні листи, логіка на бекенді)
+- **Email**: Brevo Transactional Email API (`api-key` + `templateId`, звичайний `fetch`
+  без SDK — логіка на бекенді в `netlify/functions/utils/brevo.js`)
+- **Brevo MCP**: підключений локально для цього проєкту (`claude mcp add --transport http
+  brevo https://mcp.brevo.com/v1/brevo/mcp --header "Authorization: Bearer <token>"`,
+  local scope) — токен береться в Brevo (Account → SMTP & API → API Keys, з увімкненою
+  опцією MCP)
 - **Frontend bundler**: Parcel 2 (`parcel build` / `parcel watch`)
 - **Мова**: vanilla JavaScript (ES-модулі), без фреймворків і без TypeScript
 - **Локальна розробка**: `netlify-cli` (devDependency) для `netlify dev` і тестового тунелю
@@ -51,7 +57,10 @@ punkt-cart-and-checkout/
 ├── netlify/
 │   └── functions/
 │       ├── checkout.js         # Purchase: рахує HMAC-підпис, offline-запит з fallback на form POST
-│       └── wfp-callback.js     # serviceUrl webhook: перевірка підпису колбеку, ACK-відповідь WFP
+│       ├── wfp-callback.js     # serviceUrl webhook: перевірка підпису колбеку, ACK-відповідь WFP, Brevo email
+│       └── utils/
+│           ├── validate-wfp.js  # валідація payload для checkout.js
+│           └── brevo.js         # Brevo Transactional Email API клієнт (order confirmation)
 ├── test/
 │   └── local-preview.html      # HTML-харнес для локального тестування без Webflow
 └── dist/                       # build output Parcel (у .gitignore)
@@ -90,8 +99,10 @@ punkt-cart-and-checkout/
 - `wfp-callback.js` опційно форвардить нормалізований payload колбеку у зовнішню
   автоматизацію (напр. Make.com) — вимкнено за замовчуванням, активується лише якщо
   задано `MAKE_WEBHOOK_URL`
-- Відправка email через Brevo SMTP після успішної оплати — ще не реалізована,
-  див. TODO нижче
+- Відправка email через Brevo після успішної оплати (`success && isSignatureValid`)
+  реалізована в `wfp-callback.js` через `sendOrderConfirmationEmail` з `utils/brevo.js`;
+  помилка Brevo API логується (`console.error`), але **не блокує** ACK-відповідь WFP.
+  Дані про спосіб доставки/адресу в листі відсутні — WFP не повертає їх у callback
 
 ## Env-змінні
 
@@ -146,12 +157,15 @@ Push у `main` на GitHub → Netlify автоматично білдить (`n
   серверного джерела правди по цінах, тож клієнт технічно може занизити ціну через
   localStorage/DOM перед відправкою. Деталі й варіант рішення — `PROD_CHECKLIST.md`,
   розділ 5. Обов'язково закрити перед продом з реальними платежами
-- [ ] Спільна утиліта Brevo-клієнта + виклик у `wfp-callback.js` після успішної оплати
-  (`success && isSignatureValid`) — зараз там лише TODO-коментар
 - [ ] Точний домен Webflow-сайту для `WFP_MERCHANT_DOMAIN` і CORS allow-list
   (`checkout.js` вже готовий підставити його замість `*`, щойно значення відоме)
 - [ ] `CHECKOUT_ENDPOINT` у `src/frontend/cart.js` — зараз порожній, заповнити після деплою першої функції
 - [ ] `CART_PAGE_URL` у `src/frontend/cart.js` — зараз порожній (редірект після додавання в кошик вимкнено), заповнити продовим URL сторінки кошика перед деплоєм
-- [ ] Формат і вміст email-шаблонів Brevo (підтвердження замовлення)
+- [ ] `BREVO_API_KEY` і `BREVO_ORDER_CONFIRMATION_TEMPLATE_ID` — ще не задані (ні
+  локально, ні в Netlify UI); поки що не встановлено — email просто не надсилається
+  (помилка логується, ACK все одно повертається)
+- [ ] Сам шаблон "Order confirmation" ще не створено в Brevo — очікувані `params`:
+  `ORDER_REFERENCE`, `AMOUNT`, `CURRENCY`, `ITEMS` (масив `{name, count, price}`);
+  дані доставки/адреси в params немає — WFP їх не повертає в callback
 
 _Цей файл оновлюватиметься по мірі додавання бекенд-файлів._

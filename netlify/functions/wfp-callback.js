@@ -3,9 +3,10 @@
 // 1) Приймає POST від WFP (JSON / x-www-form-urlencoded / text/plain)
 // 2) Перевіряє підпис (HMAC-MD5) callback-а
 // 3) Відповідає WFP JSON'ом {orderReference, status:"accept", time, signature}
-// 4) TODO: відправка email-підтвердження через Brevo SMTP (після успішної оплати)
+// 4) Після успішної оплати — відправка email-підтвердження через Brevo (Transactional Email API)
 
 import crypto from "crypto";
+import { sendOrderConfirmationEmail } from "./utils/brevo.js";
 
 // Дебаг-лог вмикається лише явно через ENV DEBUG_WFP_CALLBACK=1
 const DEBUG = process.env.DEBUG_WFP_CALLBACK === "1";
@@ -17,6 +18,9 @@ function hmacMd5Hex(message, secret) {
 
 // Безпечний String
 const s = (v) => (v == null ? "" : String(v));
+
+// WFP інколи присилає productName/productCount/productPrice як масив, інколи як одне значення
+const toArray = (v) => (Array.isArray(v) ? v : v != null && v !== "" ? [v] : []);
 
 // Надійне читання тіла з підтримкою base64 і "кривих" content-type
 async function readBodyFlexible(event) {
@@ -176,8 +180,37 @@ export async function handler(event) {
 
   const success = transactionStatus === "Approved";
 
-  // 6) TODO(Brevo): після success && isSignatureValid — надіслати email-підтвердження
-  // замовлення через Brevo SMTP (спільна утиліта ще не написана, див. CLAUDE.md TODO).
+  // 6) Email-підтвердження замовлення через Brevo — не має блокувати ACK-відповідь WFP
+  if (success && isSignatureValid) {
+    const customerEmail = s(data.email || data.clientEmail);
+    const customerName = [s(data.clientFirstName), s(data.clientLastName)].filter(Boolean).join(" ");
+
+    if (customerEmail) {
+      const productNames = toArray(data.productName);
+      const productCounts = toArray(data.productCount);
+      const productPrices = toArray(data.productPrice);
+      const items = productNames.map((name, i) => ({
+        name,
+        count: productCounts[i],
+        price: productPrices[i],
+      }));
+
+      try {
+        await sendOrderConfirmationEmail({
+          to: customerEmail,
+          name: customerName,
+          orderReference,
+          amount,
+          currency,
+          items,
+        });
+      } catch (e) {
+        console.error("Brevo order confirmation email failed:", e);
+      }
+    } else {
+      console.warn("WFP callback: no customer email in payload, skipping Brevo confirmation", { orderReference });
+    }
+  }
 
   // 7) Опційний форвард нормалізованого payload у зовнішню автоматизацію (Make.com тощо).
   // Вимкнено за замовчуванням — активується лише якщо задано MAKE_WEBHOOK_URL в ENV.
@@ -206,9 +239,9 @@ export async function handler(event) {
       clientLastName: s(data.clientLastName),
       clientEmail: s(data.email || data.clientEmail),
       clientPhone: s(data.phone || data.clientPhone),
-      productName: Array.isArray(data.productName) ? data.productName : (data.productName ? [data.productName] : []),
-      productCount: Array.isArray(data.productCount) ? data.productCount : (data.productCount ? [data.productCount] : []),
-      productPrice: Array.isArray(data.productPrice) ? data.productPrice : (data.productPrice ? [data.productPrice] : []),
+      productName: toArray(data.productName),
+      productCount: toArray(data.productCount),
+      productPrice: toArray(data.productPrice),
       deliveryList: s(data.deliveryList),
       alternativeCurrency: s(data.alternativeCurrency),
       alternativeAmount: s(data.alternativeAmount),
