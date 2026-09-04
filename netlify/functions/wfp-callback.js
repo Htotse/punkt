@@ -184,6 +184,7 @@ export async function handler(event) {
   if (success && isSignatureValid) {
     const customerEmail = s(data.email || data.clientEmail);
     const customerName = [s(data.clientFirstName), s(data.clientLastName)].filter(Boolean).join(" ");
+    const customerPhone = s(data.phone || data.clientPhone);
 
     if (customerEmail) {
       const productNames = toArray(data.productName);
@@ -198,8 +199,10 @@ export async function handler(event) {
       try {
         await sendOrderConfirmationEmail({
           to: customerEmail,
-          name: customerName,
+          recipientName: customerName,
+          phone: customerPhone,
           orderReference,
+          createdDate: data.createdDate,
           amount,
           currency,
           items,

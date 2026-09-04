@@ -164,8 +164,13 @@ Push у `main` на GitHub → Netlify автоматично білдить (`n
 - [ ] `BREVO_API_KEY` і `BREVO_ORDER_CONFIRMATION_TEMPLATE_ID` — ще не задані (ні
   локально, ні в Netlify UI); поки що не встановлено — email просто не надсилається
   (помилка логується, ACK все одно повертається)
-- [ ] Сам шаблон "Order confirmation" ще не створено в Brevo — очікувані `params`:
-  `ORDER_REFERENCE`, `AMOUNT`, `CURRENCY`, `ITEMS` (масив `{name, count, price}`);
-  дані доставки/адреси в params немає — WFP їх не повертає в callback
+- [ ] Шаблон "Order confirmation" у Brevo — макет уже є (`orderNumber`, `orderDate`,
+  `recipientName`, `phone`, `products`, `total`), але без `deliveryAddress` і
+  If/Else-блоку наявності/передзамовлення (свідомо прибрано — WFP не повертає адресу
+  доставки в callback, а статус наявності товару ніде не відстежується в коді).
+  `netlify/functions/utils/brevo.js` формує саме ці `params`
+  (`products`/`total` — вже готові рядки, не масиви). Залишилось: створити темплейт
+  у Brevo з цими merge-тегами й підставити його `templateId` у
+  `BREVO_ORDER_CONFIRMATION_TEMPLATE_ID`
 
 _Цей файл оновлюватиметься по мірі додавання бекенд-файлів._
