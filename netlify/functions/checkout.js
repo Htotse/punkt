@@ -125,7 +125,6 @@ export async function handler(event) {
     // ---- Прокидаємо додаткові поля (опціональні)
     const passthrough = [
       "returnUrl",
-      "serviceUrl",
       "paymentSystems",
       "deliveryList",
       "clientFirstName",
@@ -147,6 +146,14 @@ export async function handler(event) {
     const optionalFields = {};
     for (const k of passthrough) {
       if (wfp[k] != null && wfp[k] !== "") optionalFields[k] = String(wfp[k]);
+    }
+
+    // serviceUrl — лише з ENV, щоб клієнт не міг перенаправити колбек WFP на чужу адресу
+    const SERVICE_URL = process.env.WFP_SERVICE_URL;
+    if (SERVICE_URL) {
+      optionalFields.serviceUrl = SERVICE_URL;
+    } else {
+      console.warn("WFP_SERVICE_URL is not set — WFP callback (and Brevo email) will not fire");
     }
 
     // ---- Фінальний payload для запиту

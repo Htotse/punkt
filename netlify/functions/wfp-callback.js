@@ -183,29 +183,19 @@ export async function handler(event) {
   // 6) Email-підтвердження замовлення через Brevo — не має блокувати ACK-відповідь WFP
   if (success && isSignatureValid) {
     const customerEmail = s(data.email || data.clientEmail);
-    const customerName = [s(data.clientFirstName), s(data.clientLastName)].filter(Boolean).join(" ");
     const customerPhone = s(data.phone || data.clientPhone);
 
     if (customerEmail) {
-      const productNames = toArray(data.productName);
-      const productCounts = toArray(data.productCount);
-      const productPrices = toArray(data.productPrice);
-      const items = productNames.map((name, i) => ({
-        name,
-        count: productCounts[i],
-        price: productPrices[i],
-      }));
-
+      // Товарів та імені в листі немає: WFP не повертає productName/productCount/productPrice
+      // і clientFirstName/clientLastName у serviceUrl-колбеку
       try {
         await sendOrderConfirmationEmail({
           to: customerEmail,
-          recipientName: customerName,
           phone: customerPhone,
           orderReference,
           createdDate: data.createdDate,
           amount,
           currency,
-          items,
         });
       } catch (e) {
         console.error("Brevo order confirmation email failed:", e);

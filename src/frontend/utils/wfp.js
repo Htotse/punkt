@@ -64,7 +64,7 @@ export function buildWfpPayload(cart) {
 
     // (пізніше додамо)
     // returnUrl: "https://www.saule-objects.com/payment-success",
-    // serviceUrl: "https://saule-backend.netlify.app/.netlify/functions/wfp-callback",
+    // serviceUrl не задається тут — його підставляє checkout.js з ENV WFP_SERVICE_URL
   };
 
   return wfp;

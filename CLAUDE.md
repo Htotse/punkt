@@ -165,11 +165,13 @@ Push у `main` на GitHub → Netlify автоматично білдить (`n
   локально, ні в Netlify UI); поки що не встановлено — email просто не надсилається
   (помилка логується, ACK все одно повертається)
 - [ ] Шаблон "Order confirmation" у Brevo — макет уже є (`orderNumber`, `orderDate`,
-  `recipientName`, `phone`, `products`, `total`), але без `deliveryAddress` і
+  `phone`, `total`), але без `deliveryAddress`, імені покупця, списку товарів і
   If/Else-блоку наявності/передзамовлення (свідомо прибрано — WFP не повертає адресу
-  доставки в callback, а статус наявності товару ніде не відстежується в коді).
+  доставки, `clientFirstName`/`clientLastName` і `productName[]`/`productCount[]`/`productPrice[]`
+  у callback, а статус
+  наявності товару ніде не відстежується в коді).
   `netlify/functions/utils/brevo.js` формує саме ці `params`
-  (`products`/`total` — вже готові рядки, не масиви). Залишилось: створити темплейт
+  (`total` — вже готовий рядок "сума валюта"). Залишилось: створити темплейт
   у Brevo з цими merge-тегами й підставити його `templateId` у
   `BREVO_ORDER_CONFIRMATION_TEMPLATE_ID`
 
