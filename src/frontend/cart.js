@@ -307,6 +307,18 @@ window.Webflow.push(() => {
     submitOrder(btn);
   });
 
+  // Повернення "Назад" зі сторінки оплати WFP: браузер відновлює сторінку з bfcache разом
+  // зі станом "Обробка..." — скидаємо кнопку й перемальовуємо кошик з localStorage
+  window.addEventListener("pageshow", (event) => {
+    if (!event.persisted) return;
+
+    document.querySelectorAll(".checkout_button").forEach((btn) => {
+      if (btn.disabled) setCheckoutButtonLoading(btn, false);
+    });
+    renderCart();
+    updateGlobalCartQuantity();
+  });
+
   // Ініціалізація
   renderCart();
   updateGlobalCartQuantity();
