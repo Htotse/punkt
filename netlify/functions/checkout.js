@@ -4,14 +4,10 @@
 import crypto from "crypto";
 import { validateWfpPayload } from "./utils/validate-wfp.js";
 import { saveOrder } from "./utils/order-store.js";
+import { getCorsHeaders } from "./utils/cors.js";
 
 export async function handler(event) {
-  const allowOrigin = process.env.CORS_ALLOWED_ORIGIN || "*";
-  const cors = {
-    "Access-Control-Allow-Origin": allowOrigin,
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-  };
+  const cors = getCorsHeaders(event);
   if (event.httpMethod === "OPTIONS") {
     return { statusCode: 200, headers: cors, body: "" };
   }

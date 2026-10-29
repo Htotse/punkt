@@ -87,9 +87,10 @@ punkt-cart-and-checkout/
 - **CORS**: на відміну від `<script src>`, виклик `fetch(CHECKOUT_ENDPOINT)` з `cart.js`
   до Netlify Function — це cross-origin XHR-запит (домен Webflow ≠ домен Netlify).
   Кожна функція має повертати `Access-Control-Allow-Origin` з дозволеним доменом
-  Webflow-сайту, інакше запит впаде через CORS. `checkout.js` вже підставляє
-  `WFP_MERCHANT_DOMAIN` замість wildcard, якщо змінна задана — див. TODO нижче
-  щодо самого домену
+  Webflow-сайту, інакше запит впаде через CORS. `checkout.js` бере allow-list з
+  `CORS_ALLOWED_ORIGIN` (кілька доменів через кому, логіка в `utils/cors.js`) і повертає
+  origin запиту, якщо він у списку; порожня змінна = `*`. У Netlify задано
+  `https://punkt-otse.webflow.io,https://www.punktpublishing.com,https://punktpublishing.com`
 - `netlify/functions/` **комітиться в git** (на відміну від `.netlify/`, яку ігнорує git) —
   саме так GitHub → Netlify інтеграція деплоїть функції автоматично при push
 - `checkout.js` — створення платіжної сесії WFP (Purchase, offline-режим з fallback на
@@ -173,8 +174,8 @@ Push у `main` на GitHub → Netlify автоматично білдить (`n
   серверного джерела правди по цінах, тож клієнт технічно може занизити ціну через
   localStorage/DOM перед відправкою. Деталі й варіант рішення — `PROD_CHECKLIST.md`,
   розділ 5. Обов'язково закрити перед продом з реальними платежами
-- [ ] Точний домен Webflow-сайту для `WFP_MERCHANT_DOMAIN` і CORS allow-list
-  (`checkout.js` вже готовий підставити його замість `*`, щойно значення відоме)
+- [x] Домен для `WFP_MERCHANT_DOMAIN` (`punktpublishing.com`) і CORS allow-list —
+  задані в Netlify env
 - [ ] `CHECKOUT_ENDPOINT` у `src/frontend/cart.js` — зараз порожній, заповнити після деплою першої функції
 - [ ] `CART_PAGE_URL` у `src/frontend/cart.js` — зараз порожній (редірект після додавання в кошик вимкнено), заповнити продовим URL сторінки кошика перед деплоєм
 - [ ] `BREVO_API_KEY` і `BREVO_ORDER_CONFIRMATION_TEMPLATE_ID` — ще не задані (ні
