@@ -33,6 +33,6 @@
 | `cart.js`, Parcel, вбудовування у Webflow, тестова HTML-сторінка | [docs/frontend.md](docs/frontend.md) |
 | Env-змінні: де використовуються, що обов'язкове, що задано в Netlify | [docs/env.md](docs/env.md) |
 | Локальна розробка, тести, MCP-інструменти, деплой | [docs/dev-and-deploy.md](docs/dev-and-deploy.md) |
-| Перед продом / відкриті TODO | [docs/prod-checklist.md](docs/prod-checklist.md) |
+| Перед продом / відкриті TODO / захист checkout | [docs/prod-checklist.md](docs/prod-checklist.md) |
 
 Оновлювати відповідний файл у `docs/`, коли змінюється описана там логіка.
