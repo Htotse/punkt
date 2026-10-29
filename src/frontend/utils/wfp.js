@@ -3,7 +3,7 @@
 const WFP_CURRENCY = "UAH";
 const WFP_DEFAULT_PSP = "card";
 const WFP_PAYMENT_SYSTEMS = "card;googlePay;applePay";
-const WFP_DELIVERY_LIST = "nova;nova_pl;other";
+const WFP_DELIVERY_LIST = "nova;nova_pl";
 
 export function toMoney(value) {
   // 100 -> "100.00", 547.3 -> "547.30"
@@ -46,7 +46,7 @@ export function buildWfpPayload(cart) {
     merchantTransactionType: "AUTO",
     merchantTransactionSecureType: "AUTO",
     apiVersion: "1",
-    language: "EN",
+    language: "UA",
 
     orderReference: makeOrderReference("PUNKT"),
     orderDate: unixSeconds(),
