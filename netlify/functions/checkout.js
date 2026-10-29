@@ -3,7 +3,8 @@
 
 import crypto from "crypto";
 import { validateWfpPayload } from "./utils/validate-wfp.js";
-import { saveOrder } from "./utils/order-store.js";
+import { saveOrderWithUniqueReference } from "./utils/order-store.js";
+import { generateOrderReference } from "./utils/order-reference.js";
 import { getCorsHeaders } from "./utils/cors.js";
 
 export async function handler(event) {
@@ -44,7 +45,6 @@ export async function handler(event) {
 
     // ---- мінімальна валідація payload (окрім merchant-полів, які ми перезапишемо)
     const required = [
-      "orderReference",
       "orderDate",
       "amount",
       "currency",
@@ -81,6 +81,17 @@ export async function handler(event) {
       };
     }
 
+    // ---- Номер замовлення генерує сервер (номер з браузера ігнорується) і одразу зберігає
+    // товари для email-підтвердження (WFP не повертає їх у колбеку). Збій сховища не блокує
+    // оплату — тоді номер без перевірки на збіг, а лист піде без товарів
+    let orderReference;
+    try {
+      orderReference = await saveOrderWithUniqueReference(event, wfp, generateOrderReference);
+    } catch (e) {
+      console.error("Order store write failed:", e);
+      orderReference = generateOrderReference();
+    }
+
     // ---- Серверний baseline полів (перезаписуємо потенційно клієнтські значення)
     const baseFields = {
       merchantAccount: MERCHANT_ACCOUNT,
@@ -92,8 +103,9 @@ export async function handler(event) {
       language: wfp.language || "EN",
       defaultPaymentSystem: wfp.defaultPaymentSystem || "card",
 
+      orderReference,
+
       // Обов'язкові з клієнта
-      orderReference: String(wfp.orderReference),
       orderDate: String(wfp.orderDate), // UNIX seconds
       amount: String(wfp.amount),       // "N.NN"
       currency: String(wfp.currency),   // "UAH" | "EUR" | інше, якщо ввімкнено
@@ -159,17 +171,6 @@ export async function handler(event) {
       merchantSignature,
     };
 
-    // ---- Зберігаємо товари для email-підтвердження (WFP не повертає їх у колбеку).
-    // Збій сховища не блокує оплату — лист просто піде без товарів
-    try {
-      const isNewOrder = await saveOrder(event, wfp);
-      if (!isNewOrder) {
-        console.warn("Order already exists in store, not overwritten", { orderReference: baseFields.orderReference });
-      }
-    } catch (e) {
-      console.error("Order store write failed:", e);
-    }
-
     // ---- OFFLINE спроба (JSON-відповідь з URL)
     const form = new URLSearchParams();
     Object.entries({ ...payload, ...optionalFields }).forEach(([k, v]) => form.append(k, v));
@@ -200,6 +201,7 @@ export async function handler(event) {
           success: true,
           provider: "wayforpay",
           mode: "offline",
+          orderReference,
           payUrl: offlineJson.url,
         }),
       };
@@ -221,6 +223,7 @@ export async function handler(event) {
         success: true,
         provider: "wayforpay",
         mode: "form",
+        orderReference,
         wfp: {
           actionUrl: "https://secure.wayforpay.com/pay",
           fields: fieldsForForm,

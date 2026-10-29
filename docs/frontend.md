@@ -32,9 +32,10 @@ src/frontend/
 
 ## wfp.js
 
-`buildWfpPayload` формує payload без merchant-полів і підпису (їх додає бекенд), валюта
-`UAH`, `orderReference` = `PUNKT_<Date.now()>`. `serviceUrl` тут **не** задається — його
-підставляє `checkout.js` з ENV. `returnUrl` поки не задано.
+`buildWfpPayload` формує payload без merchant-полів, підпису й `orderReference` (їх додає
+бекенд), валюта `UAH`, мова сторінки оплати `UA`, доставка `nova;nova_pl` (відділення й
+поштомати Нової Пошти). `serviceUrl` тут **не** задається — його підставляє `checkout.js`
+з ENV. `returnUrl` поки не задано.
 
 ## Збірка
 

@@ -61,6 +61,18 @@ export async function saveOrder(event, wfp) {
 }
 
 // Свіжий запис з checkout.js може ще не поширитись (eventual, до 60 с) — одна повторна спроба
+const ORDER_REFERENCE_ATTEMPTS = 5;
+
+// Генерує номер і зберігає товари; номер, який уже є в сховищі (останні 7 днів), → новий номер
+export async function saveOrderWithUniqueReference(event, wfp, generateReference) {
+  for (let attempt = 1; attempt <= ORDER_REFERENCE_ATTEMPTS; attempt++) {
+    const orderReference = generateReference();
+    if (await saveOrder(event, { ...wfp, orderReference })) return orderReference;
+    console.warn("Order reference collision, generating a new one", { orderReference });
+  }
+  throw new Error(`Could not generate a unique orderReference in ${ORDER_REFERENCE_ATTEMPTS} attempts`);
+}
+
 export async function getOrder(event, orderReference, retryDelayMs = ORDER_READ_RETRY_DELAY_MS) {
   const store = openStore(event);
   const key = String(orderReference);

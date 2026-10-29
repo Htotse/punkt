@@ -26,10 +26,6 @@ export function mapCartToWfpArrays(cart) {
   return { productName, productPrice, productCount };
 }
 
-export function makeOrderReference(prefix = "Punkt") {
-  return `${prefix}_${Date.now()}`;
-}
-
 export function unixSeconds(date = new Date()) {
   return Math.floor(date.getTime() / 1000);
 }
@@ -38,7 +34,7 @@ export function buildWfpPayload(cart) {
   const { productName, productPrice, productCount } = mapCartToWfpArrays(cart);
   const total = cart.reduce((sum, item) => sum + item.price * item.cnt, 0);
 
-  // формуємо payload без підпису — бек його порахує
+  // формуємо payload без підпису й orderReference — бек їх згенерує
   const wfp = {
     // merchantAccount: WFP_MERCHANT_ACCOUNT,
     // merchantDomainName: WFP_MERCHANT_DOMAIN,
@@ -48,7 +44,6 @@ export function buildWfpPayload(cart) {
     apiVersion: "1",
     language: "UA",
 
-    orderReference: makeOrderReference("PUNKT"),
     orderDate: unixSeconds(),
     amount: toMoney(total),
     currency: WFP_CURRENCY,

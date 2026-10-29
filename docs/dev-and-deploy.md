@@ -42,7 +42,8 @@ npm run dev
 ## Юніт-тести
 
 `npm test` (vitest) — чисті функції: `src/frontend/utils/wfp.js`,
-`netlify/functions/utils/order-store.js`, `netlify/functions/utils/cors.js`.
+`netlify/functions/utils/order-store.js`, `netlify/functions/utils/cors.js`,
+`netlify/functions/utils/order-reference.js`.
 DOM-логіку `cart.js` юніт-тестами не покриваємо (для цього — E2E).
 
 ## MCP-інструменти (local scope)

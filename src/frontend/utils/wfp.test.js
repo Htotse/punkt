@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toMoney, mapCartToWfpArrays, makeOrderReference, unixSeconds, buildWfpPayload } from "./wfp.js";
+import { toMoney, mapCartToWfpArrays, unixSeconds, buildWfpPayload } from "./wfp.js";
 
 describe("toMoney", () => {
   it("formats an integer with two decimals", () => {
@@ -38,13 +38,6 @@ describe("mapCartToWfpArrays", () => {
   });
 });
 
-describe("makeOrderReference", () => {
-  it("prefixes the reference with the given (or default) prefix", () => {
-    expect(makeOrderReference("PUNKT")).toMatch(/^PUNKT_\d+$/);
-    expect(makeOrderReference()).toMatch(/^Punkt_\d+$/);
-  });
-});
-
 describe("unixSeconds", () => {
   it("converts a Date to whole seconds since epoch", () => {
     const date = new Date("2026-01-01T00:00:00.000Z");
@@ -66,6 +59,6 @@ describe("buildWfpPayload", () => {
     expect(payload.productName).toEqual(["Vase A, S", "Vase B"]);
     expect(payload.productPrice).toEqual(["120.00", "85.00"]);
     expect(payload.productCount).toEqual(["1", "2"]);
-    expect(payload.orderReference).toMatch(/^PUNKT_\d+$/);
+    expect(payload.orderReference).toBeUndefined(); // генерує checkout.js
   });
 });

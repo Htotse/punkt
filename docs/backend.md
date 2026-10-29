@@ -14,6 +14,7 @@ netlify/functions/
 ├── cleanup-orders.js    # scheduled (@daily у netlify.toml): чистка старих записів замовлень
 └── utils/
     ├── validate-wfp.js  # типи/діапазони payload, amount == Σ price × count
+    ├── order-reference.js # генерація orderReference (8 випадкових цифр)
     ├── order-store.js   # Netlify Blobs: товари замовлення, позначка "лист надіслано"
     ├── brevo.js         # Brevo Transactional Email API
     └── cors.js          # CORS allow-list з кількох доменів
@@ -22,15 +23,24 @@ netlify/functions/
 ## Потік оплати
 
 1. `cart.js` → `POST checkout` з `{ provider: "wayforpay", wfp: {...} }` (payload без
-   merchant-полів і підпису, див. `src/frontend/utils/wfp.js`)
+   merchant-полів, підпису й `orderReference`, див. `src/frontend/utils/wfp.js`)
 2. `checkout.js`:
    - перевіряє обов'язкові поля й `validateWfpPayload`
+   - **генерує `orderReference`** — 8 випадкових цифр (`10000000`–`99999999`, `crypto.randomInt`);
+     номер з браузера ігнорується. `saveOrderWithUniqueReference` одразу зберігає товари в
+     Netlify Blobs і при збігу з наявним записом генерує новий номер (до 5 спроб). Сховище
+     недоступне → номер без перевірки, лист піде без товарів
    - підставляє з ENV `merchantAccount`, `merchantDomainName`, секрет, `serviceUrl`
      (`WFP_SERVICE_URL`; клієнтське значення ігнорується)
    - рахує підпис: `merchantAccount;merchantDomainName;orderReference;orderDate;amount;currency;productName[];productCount[];productPrice[]`
-   - зберігає товари в Netlify Blobs (`saveOrder`)
    - шле `POST https://secure.wayforpay.com/pay?behavior=offline`; є `url` → `mode: "offline"`
-     (`payUrl`), інакше → `mode: "form"` (фронт сам сабмітить форму)
+     (`payUrl`), інакше → `mode: "form"` (фронт сам сабмітить форму). У відповіді також
+     `orderReference`
+
+**Ризик збігу номерів.** WFP вимагає унікальний `orderReference` назавжди, а сховище
+пам'ятає номери лише 7 днів. 8 цифр = 90 000 000 варіантів: ~50% шанс хоча б одного
+збігу на ~11 000 замовленнях за весь час (WFP відхилить таку оплату). Кількість цифр —
+`ORDER_REFERENCE_DIGITS` в `utils/order-reference.js`.
 3. Після оплати WFP шле колбек на `serviceUrl` → `wfp-callback.js`
 
 ## wfp-callback.js
@@ -59,7 +69,8 @@ netlify/functions/
 
 Потрібно, бо WFP не повертає товари в колбеку. Store `orders`, ключ — `orderReference`.
 
-- `checkout.js` → `saveOrder` (`onlyIfNew`, не перезаписує існуючий); збій лише логується
+- `checkout.js` → `saveOrderWithUniqueReference` → `saveOrder` (`onlyIfNew`: збіг номера →
+  новий номер); збій лише логується
 - `wfp-callback.js` → `getOrder` (одна повторна спроба через 2 с) → лист з `products` →
   `markEmailSent` замінює запис на `{ status: "sent" }`, тож повторний колбек лист не
   дублює. Запису немає → лист без товарів + warn у лозі
