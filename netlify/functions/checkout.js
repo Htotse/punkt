@@ -3,6 +3,7 @@
 
 import crypto from "crypto";
 import { validateWfpPayload } from "./utils/validate-wfp.js";
+import { saveOrder } from "./utils/order-store.js";
 
 export async function handler(event) {
   const allowOrigin = process.env.CORS_ALLOWED_ORIGIN || "*";
@@ -161,6 +162,17 @@ export async function handler(event) {
       ...baseFields,
       merchantSignature,
     };
+
+    // ---- Зберігаємо товари для email-підтвердження (WFP не повертає їх у колбеку).
+    // Збій сховища не блокує оплату — лист просто піде без товарів
+    try {
+      const isNewOrder = await saveOrder(event, wfp);
+      if (!isNewOrder) {
+        console.warn("Order already exists in store, not overwritten", { orderReference: baseFields.orderReference });
+      }
+    } catch (e) {
+      console.error("Order store write failed:", e);
+    }
 
     // ---- OFFLINE спроба (JSON-відповідь з URL)
     const form = new URLSearchParams();

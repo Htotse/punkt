@@ -3,6 +3,10 @@
   publish = "dist"
   functions = "netlify/functions"
 
+# Щоденне видалення записів замовлень (Netlify Blobs), старших за 7 днів
+[functions."cleanup-orders"]
+  schedule = "@daily"
+
 [dev]
   framework = "#static"
   publish = "dist"

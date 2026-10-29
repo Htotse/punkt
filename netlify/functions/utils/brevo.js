@@ -34,6 +34,13 @@ export async function sendTransactionalEmail({ to, templateId, params, sender })
   return res.json().catch(() => null);
 }
 
+// items: [{ name, count, price }] -> "Назва ×к-сть — ціна, ..."
+function formatProducts(items) {
+  return items
+    .map(({ name, count, price }) => `${name} ×${count} — ${price}`)
+    .join(", ");
+}
+
 // WFP createdDate — unix-секунди
 function formatOrderDate(createdDate) {
   const n = Number(createdDate);
@@ -48,6 +55,7 @@ export async function sendOrderConfirmationEmail({
   createdDate,
   amount,
   currency,
+  items = [],
 }) {
   const templateId = process.env.BREVO_ORDER_CONFIRMATION_TEMPLATE_ID;
   const senderEmail = process.env.BREVO_SENDER_EMAIL;
@@ -61,6 +69,7 @@ export async function sendOrderConfirmationEmail({
       orderNumber: orderReference,
       orderDate: formatOrderDate(createdDate),
       phone,
+      products: formatProducts(items),
       total: `${amount} ${currency}`.trim(),
     },
   });

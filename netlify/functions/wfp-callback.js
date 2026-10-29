@@ -7,6 +7,7 @@
 
 import crypto from "crypto";
 import { sendOrderConfirmationEmail } from "./utils/brevo.js";
+import { getOrder, getOrderItems, markEmailSent } from "./utils/order-store.js";
 
 // Дебаг-лог вмикається лише явно через ENV DEBUG_WFP_CALLBACK=1
 const DEBUG = process.env.DEBUG_WFP_CALLBACK === "1";
@@ -185,18 +186,39 @@ export async function handler(event) {
     const customerEmail = s(data.email || data.clientEmail);
     const customerPhone = s(data.phone || data.clientPhone);
 
-    if (customerEmail) {
-      // Товарів та імені в листі немає: WFP не повертає productName/productCount/productPrice
-      // і clientFirstName/clientLastName у serviceUrl-колбеку
+    // Товари беремо зі сховища (зберіг checkout.js): WFP не повертає їх у serviceUrl-колбеку.
+    // Імені покупця в листі немає — clientFirstName/clientLastName у колбеку теж відсутні
+    let order = null;
+    try {
+      order = await getOrder(event, orderReference);
+    } catch (e) {
+      console.error("Order store read failed:", e);
+    }
+
+    if (order?.status === "sent") {
+      console.log("WFP callback: confirmation email already sent, skipping", { orderReference });
+    } else if (customerEmail) {
+      if (!order) {
+        console.warn("WFP callback: order not found in store, sending email without products", { orderReference });
+      }
+
       try {
-        await sendOrderConfirmationEmail({
+        const brevoResponse = await sendOrderConfirmationEmail({
           to: customerEmail,
           phone: customerPhone,
           orderReference,
           createdDate: data.createdDate,
           amount,
           currency,
+          items: getOrderItems(order),
         });
+        console.log("Brevo order confirmation email sent", { orderReference, messageId: brevoResponse?.messageId });
+
+        try {
+          await markEmailSent(event, orderReference);
+        } catch (e) {
+          console.error("Order store write failed (email sent marker):", e);
+        }
       } catch (e) {
         console.error("Brevo order confirmation email failed:", e);
       }

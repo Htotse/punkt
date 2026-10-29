@@ -58,9 +58,11 @@ punkt-cart-and-checkout/
 │   └── functions/
 │       ├── checkout.js         # Purchase: рахує HMAC-підпис, offline-запит з fallback на form POST
 │       ├── wfp-callback.js     # serviceUrl webhook: перевірка підпису колбеку, ACK-відповідь WFP, Brevo email
+│       ├── cleanup-orders.js   # scheduled (@daily, netlify.toml): видаляє записи замовлень, старші за 7 днів
 │       └── utils/
 │           ├── validate-wfp.js  # валідація payload для checkout.js
-│           └── brevo.js         # Brevo Transactional Email API клієнт (order confirmation)
+│           ├── brevo.js         # Brevo Transactional Email API клієнт (order confirmation)
+│           └── order-store.js   # Netlify Blobs: товари замовлення (checkout → callback), позначка "лист надіслано"
 ├── test/
 │   └── local-preview.html      # HTML-харнес для локального тестування без Webflow
 └── dist/                       # build output Parcel (у .gitignore)
@@ -103,6 +105,20 @@ punkt-cart-and-checkout/
   реалізована в `wfp-callback.js` через `sendOrderConfirmationEmail` з `utils/brevo.js`;
   помилка Brevo API логується (`console.error`), але **не блокує** ACK-відповідь WFP.
   Дані про спосіб доставки/адресу в листі відсутні — WFP не повертає їх у callback
+- **Товари в листі — через Netlify Blobs** (`@netlify/blobs`, store `orders`, логіка в
+  `utils/order-store.js`), бо WFP не повертає `productName[]`/`productCount[]`/`productPrice[]`
+  у serviceUrl-колбеку:
+  - `checkout.js` після валідації зберігає запис за `orderReference` (`onlyIfNew`); збій
+    сховища лише логується й не блокує оплату
+  - `wfp-callback.js` читає запис (з однією повторною спробою через 2 с), шле лист з
+    `products`, потім замінює запис позначкою `{ status: "sent" }` — повторний колбек WFP
+    лист не дублює. Якщо запису немає — лист іде без товарів (warn у лозі)
+  - `cleanup-orders.js` щодня видаляє записи, старші за 7 днів (вбудованого TTL у Blobs немає)
+  - Лише **eventual consistency**: функції в Lambda-форматі (`export handler(event)`), а
+    `connectLambda(event)` не передає `uncachedEdgeURL`, тож `consistency: "strong"` падає
+    з `BlobsConsistencyError`
+  - Нових env-змінних не потрібно — Netlify підключає Blobs сам; `netlify dev` використовує
+    локальне сховище (продових даних там немає)
 
 ## Env-змінні
 
@@ -165,13 +181,12 @@ Push у `main` на GitHub → Netlify автоматично білдить (`n
   локально, ні в Netlify UI); поки що не встановлено — email просто не надсилається
   (помилка логується, ACK все одно повертається)
 - [ ] Шаблон "Order confirmation" у Brevo — макет уже є (`orderNumber`, `orderDate`,
-  `phone`, `total`), але без `deliveryAddress`, імені покупця, списку товарів і
+  `phone`, `products`, `total`), але без `deliveryAddress`, імені покупця і
   If/Else-блоку наявності/передзамовлення (свідомо прибрано — WFP не повертає адресу
-  доставки, `clientFirstName`/`clientLastName` і `productName[]`/`productCount[]`/`productPrice[]`
-  у callback, а статус
-  наявності товару ніде не відстежується в коді).
+  доставки й `clientFirstName`/`clientLastName` у callback, а статус наявності товару
+  ніде не відстежується в коді). Товари беруться з Netlify Blobs (див. Backend-конвенції).
   `netlify/functions/utils/brevo.js` формує саме ці `params`
-  (`total` — вже готовий рядок "сума валюта"). Залишилось: створити темплейт
+  (`products`/`total` — вже готові рядки, не масиви). Залишилось: створити темплейт
   у Brevo з цими merge-тегами й підставити його `templateId` у
   `BREVO_ORDER_CONFIRMATION_TEMPLATE_ID`
 
