@@ -1,194 +1,38 @@
 # Punkt Cart & Checkout
 
-## Опис проекту
+Кастомний кошик і checkout для Webflow-сайту `punktpublishing.com`. Скрипт `dist/cart.js`
+вбудовується у Webflow як зовнішній `<script src>`; бекенд — Netlify Functions:
+оплата через **WayForPay**, email-підтвердження через **Brevo**.
 
-Кастомний JS-код кошика та checkout-логіки для сайту на **Webflow**. Скрипт вбудовується
-в Webflow через custom code (`<script src="...">`) і не є SPA/React-застосунком — це
-незалежний проект від глобального JS-стеку.
+> Стек навмисно відрізняється від глобального CLAUDE.md (React, Radix тощо): тут
+> **vanilla JS (ES-модулі), без фреймворків і TypeScript**, фронт збирає Parcel 2.
 
-Функціонал:
-- Кошик у `localStorage` (з TTL 3 дні): додавання, +/-, видалення, рендер
-- Ініціація оплати через **WayForPay** (Purchase, offline-режим з підписом на бекенді)
-- Підтвердження замовлень / email-сповіщення через **Brevo Transactional Email API**
-  (бекенд, `netlify/functions/utils/brevo.js`, викликається з `wfp-callback.js`)
+## Ключові правила
 
-## Стек і залежності
-
-- **Хостинг/деплой**: GitHub (`github.com/Htotse/punkt`) → Netlify, сайт **punkt-shop**
-  (`https://punkt-shop.netlify.app`, admin: `https://app.netlify.com/projects/punkt-shop`),
-  підключений через `netlify link`; авто-білд і деплой при push у `main`
-- **Бекенд**: Netlify Functions (Node.js, серверні функції для checkout/webhook)
-- **Платежі**: WayForPay API (HMAC-підпис рахується на бекенді, ніколи на фронтенді)
-- **Email**: Brevo Transactional Email API (`api-key` + `templateId`, звичайний `fetch`
-  без SDK — логіка на бекенді в `netlify/functions/utils/brevo.js`)
-- **Brevo MCP**: підключений локально для цього проєкту (`claude mcp add --transport http
-  brevo https://mcp.brevo.com/v1/brevo/mcp --header "Authorization: Bearer <token>"`,
-  local scope) — токен береться в Brevo (Account → SMTP & API → API Keys, з увімкненою
-  опцією MCP)
-- **Frontend bundler**: Parcel 2 (`parcel build` / `parcel watch`)
-- **Мова**: vanilla JavaScript (ES-модулі), без фреймворків і без TypeScript
-- **Локальна розробка**: `netlify-cli` (devDependency) для `netlify dev` і тестового тунелю
-- **Юніт-тести**: `vitest` (devDependency), `npm test` — поки покриває лише чисті функції
-  в `src/frontend/utils/wfp.js` (payload для WayForPay); DOM-логіку в `cart.js` юніт-тестами
-  не покриваємо (для цього краще E2E)
-- **Playwright MCP**: підключений локально для цього проєкту (`claude mcp add playwright npx @playwright/mcp@latest`,
-  local scope) — дає змогу керувати реальним браузером під час сесії: перевіряти
-  `test/local-preview.html` (клік по кнопках кошика), а також заповнювати форму
-  генератора тестового підпису WFP і читати обчислене JS значення `merchantSignature`
-
-> Примітка: глобальні правила користувача (React 18, Radix UI тощо) стосуються інших
-> проектів. Тут стек навмисно інший — vanilla JS, бо код вбудовується в Webflow як
-> зовнішній `<script>`.
-
-## Структура репозиторію
-
-```
-punkt-cart-and-checkout/
-├── netlify.toml              # build/publish/functions конфіг Netlify
-├── package.json
-├── .env.example               # перелік потрібних env-змінних (без значень)
-├── src/
-│   └── frontend/
-│       ├── cart.js            # entry point, збирається Parcel у dist/cart.js
-│       ├── utils/
-│       │   ├── cart-storage.js  # localStorage кошика (get/set з TTL)
-│       │   └── wfp.js           # payload для WayForPay, postViaForm fallback
-│       └── styles/             # кастомні стилі кошика (поки порожньо)
-├── netlify/
-│   └── functions/
-│       ├── checkout.js         # Purchase: рахує HMAC-підпис, offline-запит з fallback на form POST
-│       ├── wfp-callback.js     # serviceUrl webhook: перевірка підпису колбеку, ACK-відповідь WFP, Brevo email
-│       ├── cleanup-orders.js   # scheduled (@daily, netlify.toml): видаляє записи замовлень, старші за 7 днів
-│       └── utils/
-│           ├── validate-wfp.js  # валідація payload для checkout.js
-│           ├── brevo.js         # Brevo Transactional Email API клієнт (order confirmation)
-│           └── order-store.js   # Netlify Blobs: товари замовлення (checkout → callback), позначка "лист надіслано"
-├── test/
-│   └── local-preview.html      # HTML-харнес для локального тестування без Webflow
-└── dist/                       # build output Parcel (у .gitignore)
-```
-
-## Frontend-конвенції
-
-- Логіка кошика — у `src/frontend/cart.js`, який імпортує утиліти з `src/frontend/utils/`
-- Нову логіку виносити в окремі утиліти в `utils/`, а не розростати `cart.js`
-- Кастомні стилі — у `src/frontend/styles/` (окремо від Webflow-стилів)
-- Збірка: `npm run build` → `dist/cart.js` (Parcel називає вихідний файл за іменем
-  вхідного — `src/frontend/cart.js`). Netlify роздає `dist/` як статику
-  (`publish = "dist"` у `netlify.toml`), тому в проді скрипт доступний за
-  `https://punkt-shop.netlify.app/cart.js` — саме цей URL вставляється в Webflow
-  custom code як `<script src="...">`
-- Script-теги не підпадають під CORS — підвантаження самого скрипта з іншого домену не проблема
-
-## Backend-конвенції (netlify/functions)
-
-- Кожна функція — окремий файл у `netlify/functions/`
 - HMAC-підпис WayForPay рахується **лише на бекенді**, ніколи у фронтенд-коді
-- **CORS**: на відміну від `<script src>`, виклик `fetch(CHECKOUT_ENDPOINT)` з `cart.js`
-  до Netlify Function — це cross-origin XHR-запит (домен Webflow ≠ домен Netlify).
-  Кожна функція має повертати `Access-Control-Allow-Origin` з дозволеним доменом
-  Webflow-сайту, інакше запит впаде через CORS. `checkout.js` бере allow-list з
-  `CORS_ALLOWED_ORIGIN` (кілька доменів через кому, логіка в `utils/cors.js`) і повертає
-  origin запиту, якщо він у списку; порожня змінна = `*`. У Netlify задано
-  `https://punkt-otse.webflow.io,https://www.punktpublishing.com,https://punktpublishing.com`
-- `netlify/functions/` **комітиться в git** (на відміну від `.netlify/`, яку ігнорує git) —
-  саме так GitHub → Netlify інтеграція деплоїть функції автоматично при push
-- `checkout.js` — створення платіжної сесії WFP (Purchase, offline-режим з fallback на
-  form POST). `wfp-callback.js` — обробка серверного колбеку WFP (`serviceUrl`), перевірка
-  підпису, ACK-відповідь. Секрет для обох береться через `WFP_TEST_MODE`-перемикач
-  (`WFP_SECRET_KEY` для live / `WFP_TEST_SECRET_KEY` для тестового режиму) — обидві функції
-  мають лишатись синхронізованими за цим прапорцем, інакше підпис на checkout і перевірка
-  на callback розійдуться
-- `wfp-callback.js` опційно форвардить нормалізований payload колбеку у зовнішню
-  автоматизацію (напр. Make.com) — вимкнено за замовчуванням, активується лише якщо
-  задано `MAKE_WEBHOOK_URL`
-- Відправка email через Brevo після успішної оплати (`success && isSignatureValid`)
-  реалізована в `wfp-callback.js` через `sendOrderConfirmationEmail` з `utils/brevo.js`;
-  помилка Brevo API логується (`console.error`), але **не блокує** ACK-відповідь WFP.
-  Дані про спосіб доставки/адресу в листі відсутні — WFP не повертає їх у callback
-- **Товари в листі — через Netlify Blobs** (`@netlify/blobs`, store `orders`, логіка в
-  `utils/order-store.js`), бо WFP не повертає `productName[]`/`productCount[]`/`productPrice[]`
-  у serviceUrl-колбеку:
-  - `checkout.js` після валідації зберігає запис за `orderReference` (`onlyIfNew`); збій
-    сховища лише логується й не блокує оплату
-  - `wfp-callback.js` читає запис (з однією повторною спробою через 2 с), шле лист з
-    `products`, потім замінює запис позначкою `{ status: "sent" }` — повторний колбек WFP
-    лист не дублює. Якщо запису немає — лист іде без товарів (warn у лозі)
-  - `cleanup-orders.js` щодня видаляє записи, старші за 7 днів (вбудованого TTL у Blobs немає)
-  - Лише **eventual consistency**: функції в Lambda-форматі (`export handler(event)`), а
-    `connectLambda(event)` не передає `uncachedEdgeURL`, тож `consistency: "strong"` падає
-    з `BlobsConsistencyError`
-  - Нових env-змінних не потрібно — Netlify підключає Blobs сам; `netlify dev` використовує
-    локальне сховище (продових даних там немає)
+- `checkout.js` і `wfp-callback.js` беруть секрет через один перемикач `WFP_TEST_MODE`
+  (`WFP_SECRET_KEY` / `WFP_TEST_SECRET_KEY`) — тримати їх синхронними, інакше підпис
+  на checkout і перевірка на callback розійдуться
+- Порядок полів у рядку підпису WFP — строго за документацією, не з пам'яті
+- Нову логіку виносити в окремі модулі `utils/`, а не розростати `cart.js` чи функції
+- Секрети — лише в `.env` (локально, не комітити) і Netlify env (прод)
+- Push у `main` = деплой на прод з реальними платежами
 
-## Env-змінні
+## Git
 
-Перелік у `.env.example`. Реальні значення:
-- Локально — `.env` у корені (в `.gitignore`, ніколи не комітити)
-- Прод — Netlify UI → Site settings → Environment variables
-
-## Локальна розробка й тестування (без деплою на кожен чих)
-
-Один термінал, одна команда:
-
-```
-npm run dev
-```
-
-Це запускає `scripts/dev.sh`, який одночасно піднімає:
-1. `parcel watch src/frontend/cart.js --dist-dir dist` — фонова збірка фронтенду при кожній зміні
-2. `netlify dev --live` — локальний сервер з функціями (`netlify/functions`) **і публічним тунелем**
-
-У виводі `netlify dev --live` шукайте рядок з публічним URL (виду `https://<random>--<site-name>.netlify.live` або `Live Dev Server: ...`) — саме його підставляти в тестові конфіги (`CHECKOUT_ENDPOINT` для перевірки бекенду з реального Webflow-домену тощо). `Ctrl+C` зупиняє обидва процеси одночасно.
-
-`netlify.toml` → `[dev]` навмисно **без** `command` — `netlify dev` лише роздає `dist/` як статику й обслуговує `netlify/functions/`, а не намагається сам запускати `parcel watch` (той не відкриває порт, тож `netlify dev` завис би, якби чекав його як proxy-сервер).
-
-Додатково: відкрити `test/local-preview.html` — мінімальний харнес з тестовими товарами
-(`.product`, `.js-add-to-cart`, `#cart-container`, `.checkout-button`) і заглушкою
-`window.Webflow` (реальний Webflow-рушій сам виконує чергу `Webflow.push(fn)`; тут її
-імітує `{ push: fn => fn() }`), що підвантажує `../dist/cart.js` — дозволяє перевірити
-кошик і чекаут, не чіпаючи живий Webflow-сайт.
-
-## Деплой
-
-Push у `main` на GitHub → Netlify автоматично білдить (`npm run build` з `netlify.toml`)
-і деплоїть і статику (`dist/`), і функції (`netlify/functions/`). Ручний деплой не потрібен.
-
-**Перед публікацією на прод з реальними клієнтськими токенами WFP** — пройтись за
-чеклістом [`PROD_CHECKLIST.md`](./PROD_CHECKLIST.md) (env-змінні в Netlify UI, заміна
-`CHECKOUT_ENDPOINT`/CORS з локальних/sandbox значень на прод, Brevo).
-
-## Конвенції коду/гіту (успадковано з глобального CLAUDE.md)
-
-- Commit-повідомлення: `type: короткий опис` (`feat:`, `fix:`, `refactor:`, `chore:`)
-- При коміті — сам аналізувати зміни й пропонувати повідомлення
-- Завжди питати підтвердження перед `git push`
-- Ніколи не пушити напряму в `main`
+- Commit: `type: короткий опис` (`feat:` / `fix:` / `refactor:` / `chore:`); повідомлення
+  пропонувати самому, проаналізувавши зміни
+- Завжди питати підтвердження перед `git push`; не пушити напряму в `main`
 - Питати перед додаванням нових npm-пакетів
-- Функціональні модулі маленькі й сфокусовані; описові англомовні назви змінних
 
-## Відкриті питання / TODO
+## Документація — читати перед роботою з відповідною частиною
 
-- [ ] Захист від підміни ціни товару — `checkout.js` звіряє лише внутрішню
-  узгодженість payload (`amount` vs `productPrice × productCount`), але не має
-  серверного джерела правди по цінах, тож клієнт технічно може занизити ціну через
-  localStorage/DOM перед відправкою. Деталі й варіант рішення — `PROD_CHECKLIST.md`,
-  розділ 5. Обов'язково закрити перед продом з реальними платежами
-- [x] Домен для `WFP_MERCHANT_DOMAIN` (`punktpublishing.com`) і CORS allow-list —
-  задані в Netlify env
-- [ ] `CHECKOUT_ENDPOINT` у `src/frontend/cart.js` — зараз порожній, заповнити після деплою першої функції
-- [ ] `CART_PAGE_URL` у `src/frontend/cart.js` — зараз порожній (редірект після додавання в кошик вимкнено), заповнити продовим URL сторінки кошика перед деплоєм
-- [ ] `BREVO_API_KEY` і `BREVO_ORDER_CONFIRMATION_TEMPLATE_ID` — ще не задані (ні
-  локально, ні в Netlify UI); поки що не встановлено — email просто не надсилається
-  (помилка логується, ACK все одно повертається)
-- [ ] Шаблон "Order confirmation" у Brevo — макет уже є (`orderNumber`, `orderDate`,
-  `phone`, `products`, `total`), але без `deliveryAddress`, імені покупця і
-  If/Else-блоку наявності/передзамовлення (свідомо прибрано — WFP не повертає адресу
-  доставки й `clientFirstName`/`clientLastName` у callback, а статус наявності товару
-  ніде не відстежується в коді). Товари беруться з Netlify Blobs (див. Backend-конвенції).
-  `netlify/functions/utils/brevo.js` формує саме ці `params`
-  (`products`/`total` — вже готові рядки, не масиви). Залишилось: створити темплейт
-  у Brevo з цими merge-тегами й підставити його `templateId` у
-  `BREVO_ORDER_CONFIRMATION_TEMPLATE_ID`
+| Задача | Файл |
+|---|---|
+| Netlify Functions: checkout, WFP-колбек, підписи, Brevo, Netlify Blobs, CORS | [docs/backend.md](docs/backend.md) |
+| `cart.js`, Parcel, вбудовування у Webflow, тестова HTML-сторінка | [docs/frontend.md](docs/frontend.md) |
+| Env-змінні: де використовуються, що обов'язкове, що задано в Netlify | [docs/env.md](docs/env.md) |
+| Локальна розробка, тести, MCP-інструменти, деплой | [docs/dev-and-deploy.md](docs/dev-and-deploy.md) |
+| Перед продом / відкриті TODO | [docs/prod-checklist.md](docs/prod-checklist.md) |
 
-_Цей файл оновлюватиметься по мірі додавання бекенд-файлів._
+Оновлювати відповідний файл у `docs/`, коли змінюється описана там логіка.
