@@ -12,6 +12,8 @@ src/frontend/
 │   ├── cart-storage.js       # кошик у localStorage з TTL 3 дні
 │   ├── wfp.js                # buildWfpPayload, postViaForm (fallback-форма на WFP)
 │   ├── wfp.test.js           # vitest для wfp.js
+│   ├── meta-pixel.js         # безпечні події Meta Pixel (AddToCart, InitiateCheckout)
+│   ├── meta-pixel.test.js    # vitest для meta-pixel.js
 │   └── fetch-with-retry.js   # fetch з exponential backoff (4xx не ретраїться)
 └── styles/                   # кастомні стилі кошика, окремо від Webflow (поки порожньо)
 ```
@@ -20,7 +22,8 @@ src/frontend/
 
 - Код загорнутий у `window.Webflow.push(...)` — виконується, коли Webflow готовий
 - Додавання: клік по `.js-add-to-cart` усередині `.product`; дані з `data-name`,
-  `data-price`, `data-author`, `data-img-src`, `data-product-page`
+  `data-price`, `data-author`, `data-img-src`, `data-product-page`, `data-product-code`
+  (у Webflow прив'язаний до Slug товару; зберігається в кошику як `productCode`)
 - Рендер у `#cart-product-list`, сума в `#cart-subtotal-num`, блок `#cart-bottom`;
   кнопки `[data-cart="plus-btn"]` / `[data-cart="minus-btn"]`; лічильник у шапці —
   `[data-cart-button="quantity-number"]`
@@ -29,6 +32,22 @@ src/frontend/
 - `CHECKOUT_ENDPOINT` — `process.env.CHECKOUT_ENDPOINT`, який Parcel підставляє **під час
   білду**; без нього — `https://punkt-shop.netlify.app/.netlify/functions/checkout`
 - `CART_PAGE_URL` задано, але редірект після додавання в кошик закоментований
+
+## Meta Pixel (`meta-pixel.js`)
+
+Базовий код пікселя (`fbq('init')` + `PageView`) — у Webflow → Site settings → Custom
+code → Head, **не** в бандлі. `cart.js` лише шле події через `trackPixelEvent`, яка
+нічого не робить, якщо `fbq` немає (блокувальник), і ковтає його помилки.
+
+- `AddToCart` — всередині `addToCart` після збереження кошика (лише кнопка
+  `.js-add-to-cart`, не «+» у кошику): `content_name`, `value` (ціна за 1 шт.),
+  `currency: "UAH"`, `content_type: "product"`, `content_ids: [productCode]`
+- `InitiateCheckout` — на початку `submitOrder`, **до** запиту на checkout (поки чекаємо
+  бекенд, піксель встигає відправити подію): `value` (сума), `currency`, `num_items`,
+  `content_type`, `content_ids` (унікальні коди). Повторно з тим самим кошиком у межах
+  сторінки не шлеться (захист від повторних спроб після помилки / «Назад» з WFP)
+- Порожній `productCode` (старі кошики, незаповнений атрибут) → `content_ids` просто не
+  додається; `productCode` у WFP-payload не йде
 
 ## wfp.js
 

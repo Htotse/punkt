@@ -4,6 +4,11 @@
 import { getCartWithExpiry, setCartWithExpiry } from "./utils/cart-storage.js";
 import { buildWfpPayload, postViaForm } from "./utils/wfp.js";
 import { fetchWithRetry } from "./utils/fetch-with-retry.js";
+import {
+  trackPixelEvent,
+  buildAddToCartParams,
+  trackInitiateCheckoutOnce,
+} from "./utils/meta-pixel.js";
 
 window.Webflow ||= [];
 window.Webflow.push(() => {
@@ -34,6 +39,7 @@ window.Webflow.push(() => {
     const authorName = product.dataset.author;
     const imgSrc = product.dataset.imgSrc;
     const productPageLink = product.dataset.productPage;
+    const productCode = (product.dataset.productCode || "").trim();
     const rawPrice = product.dataset.price || "";
     const price = parseInt(rawPrice.replace(/[^\d]/g, ""), 10);
 
@@ -50,9 +56,12 @@ window.Webflow.push(() => {
     );
 
     if (existing) existing.cnt += 1;
-    else cart.push({ name, authorName, imgSrc, price, cnt: 1, productPageLink });
+    else cart.push({ name, authorName, imgSrc, price, cnt: 1, productPageLink, productCode });
+    // старі кошики без productCode: дописуємо код, коли той самий товар додають знову
+    if (existing && !existing.productCode && productCode) existing.productCode = productCode;
 
     setCartWithExpiry(cart);
+    trackPixelEvent("AddToCart", buildAddToCartParams({ name, price, productCode }));
     renderCart();
     updateGlobalCartQuantity();
   }
@@ -250,6 +259,8 @@ window.Webflow.push(() => {
 
   async function submitOrder(btn) {
     const cart = getCartWithExpiry();
+    // до запиту на checkout: поки чекаємо відповідь бекенду, піксель встигає відправити подію
+    trackInitiateCheckoutOnce(cart);
     const wfpPayload = buildWfpPayload(cart);
 
     try {

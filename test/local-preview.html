@@ -11,16 +11,29 @@
     .minus_btn_wr, .plus_btn_wr { width: 20px; cursor: pointer; border: 1px solid #ccc; text-align: center; }
     .checkout_button { margin-top: 16px; padding: 8px 16px; }
   </style>
+  <!-- Meta Pixel: на сайті сніпет стоїть у Webflow → Custom code → Head. Тут вимкнено,
+       щоб перевіряти сценарій «fbq відсутній». Для перевірки подій — розкоментувати
+       й підставити PIXEL_ID.
+  <script>
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+  n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+  document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', 'PIXEL_ID');
+  fbq('track', 'PageView');
+  </script>
+  -->
 </head>
 <body>
   <h1>Каталог (тестові товари)</h1>
 
-  <div class="product" data-name="Vase A" data-price="120" data-img-src="" data-product-page="#" data-author="Studio X">
+  <div class="product" data-name="Vase A" data-price="120" data-product-code="vase-a" data-img-src="" data-product-page="#" data-author="Studio X">
     <span>Vase A — €120</span>
     <a href="#" class="js-add-to-cart">Add to cart</a>
   </div>
 
-  <div class="product" data-name="Vase B" data-price="85" data-img-src="" data-product-page="#" data-author="Studio Y">
+  <div class="product" data-name="Vase B" data-price="85" data-product-code="vase-b" data-img-src="" data-product-page="#" data-author="Studio Y">
     <span>Vase B — €85</span>
     <a href="#" class="js-add-to-cart">Add to cart</a>
   </div>

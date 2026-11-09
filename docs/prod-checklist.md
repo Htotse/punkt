@@ -43,6 +43,13 @@ HMAC-підпису, `cleanup-orders` (scheduled) не викликається 
 - [ ] `CART_PAGE_URL` у `cart.js` = `https://punkt-otse.webflow.io/cart`, редірект після
   додавання в кошик вимкнено — вирішити, чи вмикати і на якому домені
 - [ ] `DEBUG_WFP_CALLBACK` — переконатися, що в Netlify не задано
+- [ ] **Meta Pixel:** у Webflow прив'язати `data-product-code` до Slug товару (в обох
+  блоках `.product` — десктоп і мобільний; зараз атрибут порожній); вставити базовий
+  сніпет пікселя з реальним `PIXEL_ID` у Site settings → Custom code → Head (див.
+  [frontend.md](frontend.md#meta-pixel-meta-pixeljs)); перевірити через Meta Pixel
+  Helper: `PageView` на кожній сторінці, `AddToCart` на кнопці товару (не на «+»),
+  один `InitiateCheckout` до переходу на WFP
+- [ ] `data-product-page` у CMS веде на `punkt-otse.webflow.io` — замінити на прод-домен
 
 ## Перевірка після деплою
 
