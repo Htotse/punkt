@@ -22,8 +22,8 @@ src/frontend/
 
 - Код загорнутий у `window.Webflow.push(...)` — виконується, коли Webflow готовий
 - Додавання: клік по `.js-add-to-cart` усередині `.product`; дані з `data-name`,
-  `data-price`, `data-author`, `data-img-src`, `data-product-page`, `data-product-code`
-  (у Webflow прив'язаний до Slug товару; зберігається в кошику як `productCode`)
+  `data-price`, `data-author`, `data-img-src`, `data-product-page` (посилання на сторінку
+  товару; зберігається в кошику як `productPageLink` і слугує ID товару для Meta Pixel)
 - Рендер у `#cart-product-list`, сума в `#cart-subtotal-num`, блок `#cart-bottom`;
   кнопки `[data-cart="plus-btn"]` / `[data-cart="minus-btn"]`; лічильник у шапці —
   `[data-cart-button="quantity-number"]`
@@ -41,13 +41,14 @@ code → Head, **не** в бандлі. `cart.js` лише шле події ч
 
 - `AddToCart` — всередині `addToCart` після збереження кошика (лише кнопка
   `.js-add-to-cart`, не «+» у кошику): `content_name`, `value` (ціна за 1 шт.),
-  `currency: "UAH"`, `content_type: "product"`, `content_ids: [productCode]`
+  `currency: "UAH"`, `content_type: "product"`, `content_ids: [ID товару]`
 - `InitiateCheckout` — на початку `submitOrder`, **до** запиту на checkout (поки чекаємо
   бекенд, піксель встигає відправити подію): `value` (сума), `currency`, `num_items`,
   `content_type`, `content_ids` (унікальні коди). Повторно з тим самим кошиком у межах
   сторінки не шлеться (захист від повторних спроб після помилки / «Назад» з WFP)
-- Порожній `productCode` (старі кошики, незаповнений атрибут) → `content_ids` просто не
-  додається; `productCode` у WFP-payload не йде
+- ID товару = шлях із `data-product-page` без домену (`getProductId`):
+  `https://punkt-otse.webflow.io/books/aeneidos` → `/books/aeneidos`, тож ID однаковий на
+  staging і проді. Порожнє посилання → `content_ids` просто не додається
 
 ## wfp.js
 

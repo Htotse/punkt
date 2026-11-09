@@ -39,7 +39,6 @@ window.Webflow.push(() => {
     const authorName = product.dataset.author;
     const imgSrc = product.dataset.imgSrc;
     const productPageLink = product.dataset.productPage;
-    const productCode = (product.dataset.productCode || "").trim();
     const rawPrice = product.dataset.price || "";
     const price = parseInt(rawPrice.replace(/[^\d]/g, ""), 10);
 
@@ -56,12 +55,10 @@ window.Webflow.push(() => {
     );
 
     if (existing) existing.cnt += 1;
-    else cart.push({ name, authorName, imgSrc, price, cnt: 1, productPageLink, productCode });
-    // старі кошики без productCode: дописуємо код, коли той самий товар додають знову
-    if (existing && !existing.productCode && productCode) existing.productCode = productCode;
+    else cart.push({ name, authorName, imgSrc, price, cnt: 1, productPageLink });
 
     setCartWithExpiry(cart);
-    trackPixelEvent("AddToCart", buildAddToCartParams({ name, price, productCode }));
+    trackPixelEvent("AddToCart", buildAddToCartParams({ name, price, productPageLink }));
     renderCart();
     updateGlobalCartQuantity();
   }
