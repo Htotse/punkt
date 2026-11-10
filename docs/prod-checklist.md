@@ -50,6 +50,10 @@ HMAC-підпису, `cleanup-orders` (scheduled) не викликається 
   Helper: `PageView` на кожній сторінці, `AddToCart` на кнопці товару (не на «+»),
   один `InitiateCheckout` до переходу на WFP
 - [ ] `data-product-page` у CMS веде на `punkt-otse.webflow.io` — замінити на прод-домен
+- [ ] **Meta CAPI:** задати в Netlify `META_PIXEL_ID` (той самий, що у Webflow) і
+  `META_CAPI_TOKEN`; перевірити Purchase через Events Manager → Test events з тимчасовим
+  `META_TEST_EVENT_CODE`, після перевірки — видалити змінну й передеплоїти. Тестовий
+  піксель від таргетолога → замінити на піксель Punkt в обох місцях (Webflow і Netlify)
 
 ## Перевірка після деплою
 

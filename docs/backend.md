@@ -10,13 +10,14 @@ Netlify транспілює їх через esbuild.
 ```
 netlify/functions/
 ├── checkout.js          # Purchase: валідація, HMAC-підпис, offline-запит до WFP, fallback на form POST
-├── wfp-callback.js      # serviceUrl: перевірка підпису колбеку, ACK для WFP, Brevo email
+├── wfp-callback.js      # serviceUrl: перевірка підпису колбеку, ACK для WFP, Meta Purchase, Brevo email
 ├── cleanup-orders.js    # scheduled (@daily у netlify.toml): чистка старих записів замовлень
 └── utils/
     ├── validate-wfp.js  # типи/діапазони payload, amount == Σ price × count
     ├── order-reference.js # генерація orderReference (8 випадкових цифр)
     ├── order-store.js   # Netlify Blobs: товари замовлення, позначка "лист надіслано"
     ├── brevo.js         # Brevo Transactional Email API
+    ├── meta-capi.js     # Meta Conversions API: подія Purchase
     └── cors.js          # CORS allow-list з кількох доменів
 ```
 
@@ -49,7 +50,8 @@ netlify/functions/
 - Підпис колбеку: `merchantAccount;orderReference;amount;currency;authCode;cardPan;transactionStatus;reasonCode`
 - Завжди відповідає ACK `{ orderReference, status: "accept", time, signature }`,
   підпис `orderReference;status;time`. Помилки email/сховища ACK не блокують
-- Лист шле лише при `transactionStatus === "Approved"` і валідному підписі
+- Purchase у Meta і лист шле лише при `transactionStatus === "Approved"` і валідному
+  підписі; Purchase — **перед** листом, бо `markEmailSent` стирає товари із запису
 - Що WFP **не** повертає в колбеку: товари (`productName[]` тощо), ім'я покупця, адресу
   доставки. Є `email`, `phone`, `amount`, `currency`, `createdDate` тощо
 - Опційний форвард нормалізованого payload у Make.com, якщо задано `MAKE_WEBHOOK_URL`
@@ -65,13 +67,36 @@ netlify/functions/
 - В акаунті Brevo **вимкнено блокування невідомих IP** — інакше Netlify Functions
   (динамічні IP) отримують 401
 
+## Meta Conversions API — `utils/meta-capi.js`
+
+Розподіл подій: `PageView` / `AddToCart` / `InitiateCheckout` — **лише браузерний піксель**
+(див. [frontend.md](frontend.md#meta-pixel-meta-pixeljs)), `Purchase` — **лише сервер**
+(оплата завершується на сторінці WFP, піксель її не бачить). Кожна подія йде одним каналом,
+тож дедуплікація браузер↔сервер не потрібна.
+
+- `POST https://graph.facebook.com/v27.0/{META_PIXEL_ID}/events`, токен `META_CAPI_TOKEN`
+- `event_id` = `orderReference` — повторний колбек до позначки `sent` Meta відкине як дубль
+- `user_data`: `em`/`ph` (SHA-256 після нормалізації: email lowercase, телефон лише цифри з
+  `380`), `client_ip_address`, `client_user_agent`
+- `custom_data`: `value`/`currency` з колбеку (перевірені підписом), `order_id`, `num_items`,
+  `contents` + `content_ids` — ID товару = шлях сторінки, той самий, що в AddToCart
+- IP, User-Agent і `event_source_url` (referer) `checkout.js` бере із заголовків запиту
+  браузера (`getClientContext`) і зберігає в Blobs; для `action_source: "website"` Meta їх
+  вимагає. Cookies `_fbp`/`_fbc` не передаються
+- Немає `META_PIXEL_ID`/`META_CAPI_TOKEN` → warn і пропуск. Помилка Meta не блокує лист і ACK,
+  але й не повторюється (якщо лист пішов, запис уже `sent`)
+- `META_TEST_EVENT_CODE` → подія видна в Events Manager → Test events; у проді не задавати
+
 ## Товари замовлення — Netlify Blobs (`utils/order-store.js`)
 
 Потрібно, бо WFP не повертає товари в колбеку. Store `orders`, ключ — `orderReference`.
 
 - `checkout.js` → `saveOrderWithUniqueReference` → `saveOrder` (`onlyIfNew`: збіг номера →
   новий номер); збій лише логується
-- `wfp-callback.js` → `getOrder` (одна повторна спроба через 2 с) → лист з `products` →
+- Запис: `productName`/`productCount`/`productPrice`, `amount`, `currency`, а для Meta CAPI —
+  `productId` (з браузера, у підпис WFP не входить; приймається лише масив рядків тієї ж
+  довжини), `clientIp`, `clientUserAgent`, `eventSourceUrl`
+- `wfp-callback.js` → `getOrder` (одна повторна спроба через 2 с) → Meta Purchase → лист з `products` →
   `markEmailSent` замінює запис на `{ status: "sent" }`, тож повторний колбек лист не
   дублює. Запису немає → лист без товарів + warn у лозі
 - `cleanup-orders.js` щодня видаляє записи, старші за 7 днів (вбудованого TTL у Blobs немає)
@@ -94,8 +119,10 @@ netlify/functions/
 | Невалідний підпис | warn `WFP callback signature mismatch` |
 | Немає email у колбеку | warn `no customer email in payload` |
 | Лист надіслано | `Brevo order confirmation email sent` з `messageId` |
-| Повторний колбек | `confirmation email already sent, skipping` |
-| Помилка Brevo / сховища | error `Brevo ... failed` / `Order store ... failed` |
+| Purchase у Meta | `Meta CAPI Purchase sent` з `eventsReceived` |
+| Немає env Meta | warn `Meta CAPI Purchase skipped` |
+| Повторний колбек | `order already processed (email + Meta Purchase), skipping` |
+| Помилка Brevo / Meta / сховища | error `Brevo ... failed` / `Meta CAPI Purchase failed` / `Order store ... failed` |
 
 ## Документація WFP
 

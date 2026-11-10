@@ -3,11 +3,12 @@
 // 1) Приймає POST від WFP (JSON / x-www-form-urlencoded / text/plain)
 // 2) Перевіряє підпис (HMAC-MD5) callback-а
 // 3) Відповідає WFP JSON'ом {orderReference, status:"accept", time, signature}
-// 4) Після успішної оплати — відправка email-підтвердження через Brevo (Transactional Email API)
+// 4) Після успішної оплати — Meta CAPI Purchase і email-підтвердження через Brevo
 
 import crypto from "crypto";
 import { sendOrderConfirmationEmail } from "./utils/brevo.js";
 import { getOrder, getOrderItems, markEmailSent } from "./utils/order-store.js";
+import { sendPurchaseEvent } from "./utils/meta-capi.js";
 
 // Дебаг-лог вмикається лише явно через ENV DEBUG_WFP_CALLBACK=1
 const DEBUG = process.env.DEBUG_WFP_CALLBACK === "1";
@@ -85,6 +86,28 @@ async function readBodyFlexible(event) {
   if (Object.keys(qs).length > 0) return qs;
 
   return {};
+}
+
+// Повтор колбеку до позначки sent безпечний: event_id = orderReference, Meta відкине дубль.
+// Збій Meta не має впливати ні на лист, ні на ACK для WFP
+async function trackMetaPurchase({ orderReference, amount, currency, customerEmail, customerPhone, order }) {
+  try {
+    const metaResult = await sendPurchaseEvent({
+      orderReference,
+      amount,
+      currency,
+      email: customerEmail,
+      phone: customerPhone,
+      order,
+    });
+    if (metaResult?.skipped) {
+      console.warn("Meta CAPI Purchase skipped:", metaResult.reason, { orderReference });
+    } else {
+      console.log("Meta CAPI Purchase sent", { orderReference, eventsReceived: metaResult?.events_received });
+    }
+  } catch (e) {
+    console.error("Meta CAPI Purchase failed:", e);
+  }
 }
 
 export async function handler(event) {
@@ -181,7 +204,7 @@ export async function handler(event) {
 
   const success = transactionStatus === "Approved";
 
-  // 6) Email-підтвердження замовлення через Brevo — не має блокувати ACK-відповідь WFP
+  // 6) Meta CAPI Purchase + email-підтвердження через Brevo — збої не блокують ACK-відповідь WFP
   if (success && isSignatureValid) {
     const customerEmail = s(data.email || data.clientEmail);
     const customerPhone = s(data.phone || data.clientPhone);
@@ -195,8 +218,13 @@ export async function handler(event) {
       console.error("Order store read failed:", e);
     }
 
+    // 6a) Meta CAPI Purchase — до markEmailSent, бо той стирає товари із запису
+    if (order?.status !== "sent") {
+      await trackMetaPurchase({ orderReference, amount, currency, customerEmail, customerPhone, order });
+    }
+
     if (order?.status === "sent") {
-      console.log("WFP callback: confirmation email already sent, skipping", { orderReference });
+      console.log("WFP callback: order already processed (email + Meta Purchase), skipping", { orderReference });
     } else if (customerEmail) {
       if (!order) {
         console.warn("WFP callback: order not found in store, sending email without products", { orderReference });

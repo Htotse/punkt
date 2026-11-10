@@ -16,7 +16,7 @@ describe("toMoney", () => {
 });
 
 describe("mapCartToWfpArrays", () => {
-  it("keeps items in the same order across all three arrays", () => {
+  it("keeps items in the same order across all arrays", () => {
     const cart = [
       { name: "Vase A, S", price: 120, cnt: 1 },
       { name: "Vase B", price: 85, cnt: 2 },
@@ -26,6 +26,7 @@ describe("mapCartToWfpArrays", () => {
       productName: ["Vase A, S", "Vase B"],
       productPrice: ["120.00", "85.00"],
       productCount: ["1", "2"],
+      productId: ["", ""],
     });
   });
 
@@ -34,6 +35,7 @@ describe("mapCartToWfpArrays", () => {
       productName: [],
       productPrice: [],
       productCount: [],
+      productId: [],
     });
   });
 });
@@ -60,5 +62,13 @@ describe("buildWfpPayload", () => {
     expect(payload.productPrice).toEqual(["120.00", "85.00"]);
     expect(payload.productCount).toEqual(["1", "2"]);
     expect(payload.orderReference).toBeUndefined(); // генерує checkout.js
+  });
+
+  it("додає productId (шлях сторінки товару) для Meta CAPI, порожній — якщо посилання немає", () => {
+    const cart = [
+      { name: "A", price: 100, cnt: 1, productPageLink: "https://punkt-otse.webflow.io/books/aeneidos" },
+      { name: "B", price: 50, cnt: 1 },
+    ];
+    expect(buildWfpPayload(cart).productId).toEqual(["/books/aeneidos", ""]);
   });
 });

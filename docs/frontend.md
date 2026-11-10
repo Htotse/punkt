@@ -46,6 +46,10 @@ code → Head, **не** в бандлі. `cart.js` лише шле події ч
   бекенд, піксель встигає відправити подію): `value` (сума), `currency`, `num_items`,
   `content_type`, `content_ids` (унікальні коди). Повторно з тим самим кошиком у межах
   сторінки не шлеться (захист від повторних спроб після помилки / «Назад» з WFP)
+- `Purchase` з браузера **не** шлеться — його відправляє сервер через Meta CAPI після
+  оплати ([backend.md](backend.md#meta-conversions-api--utilsmeta-capijs)). Для нього
+  `buildWfpPayload` додає в payload checkout масив `productId` (той самий `getProductId`);
+  у WFP і підпис він не йде, `checkout.js` лише зберігає його в Blobs
 - ID товару = шлях із `data-product-page` без домену (`getProductId`):
   `https://punkt-otse.webflow.io/books/aeneidos` → `/books/aeneidos`, тож ID однаковий на
   staging і проді. Порожнє посилання → `content_ids` просто не додається
