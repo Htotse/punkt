@@ -46,7 +46,7 @@ export function buildWfpPayload(cart) {
     merchantAuthType: "SimpleSignature",
     merchantTransactionType: "AUTO",
     merchantTransactionSecureType: "AUTO",
-    apiVersion: "1",
+    apiVersion: "2",
     language: "UA",
 
     orderDate: unixSeconds(),

@@ -106,7 +106,8 @@ export async function handler(event) {
       merchantDomainName: MERCHANT_DOMAIN,
       merchantTransactionType: wfp.merchantTransactionType || "AUTO",
       merchantTransactionSecureType: wfp.merchantTransactionSecureType || "AUTO",
-      apiVersion: wfp.apiVersion || "1",
+      // v2 — WFP повертає дані доставки (deliveryName/Phone/Address), clientName і products
+      apiVersion: "2",
       language: wfp.language || "EN",
       defaultPaymentSystem: wfp.defaultPaymentSystem || "card",
 

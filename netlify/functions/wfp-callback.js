@@ -136,7 +136,8 @@ export async function handler(event) {
     const safeLog = { ...data };
     if (safeLog.cardPan) safeLog.cardPan = "<masked>";
     if (safeLog.authCode) safeLog.authCode = "<hidden>";
-    console.log("WFP callback raw (safe):", JSON.stringify(safeLog).slice(0, 2000));
+    console.log("WFP callback keys:", Object.keys(data).join(", "));
+    console.log("WFP callback raw (safe):", JSON.stringify(safeLog).slice(0, 4000));
   }
 
   // 2) Секрет — той самий live/test перемикач, що й у checkout.js
@@ -209,8 +210,9 @@ export async function handler(event) {
     const customerEmail = s(data.email || data.clientEmail);
     const customerPhone = s(data.phone || data.clientPhone);
 
-    // Товари беремо зі сховища (зберіг checkout.js): WFP не повертає їх у serviceUrl-колбеку.
-    // Імені покупця в листі немає — clientFirstName/clientLastName у колбеку теж відсутні
+    // Товари беремо зі сховища (зберіг checkout.js): там ще ціни/ID для Meta і дані браузера.
+    // З apiVersion 2 WFP шле й products, але без ID. clientName часто "NoCLIENT NAME" —
+    // ім'я в листі беремо з deliveryName
     let order = null;
     try {
       order = await getOrder(event, orderReference);
@@ -239,6 +241,12 @@ export async function handler(event) {
           amount,
           currency,
           items: getOrderItems(order),
+          // Доставка приходить лише з apiVersion "2" (задано в checkout.js)
+          delivery: {
+            name: s(data.deliveryName),
+            phone: s(data.deliveryPhone),
+            address: s(data.deliveryAddress),
+          },
         });
         console.log("Brevo order confirmation email sent", { orderReference, messageId: brevoResponse?.messageId });
 

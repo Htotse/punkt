@@ -52,8 +52,13 @@ netlify/functions/
   підпис `orderReference;status;time`. Помилки email/сховища ACK не блокують
 - Purchase у Meta і лист шле лише при `transactionStatus === "Approved"` і валідному
   підписі; Purchase — **перед** листом, бо `markEmailSent` стирає товари із запису
-- Що WFP **не** повертає в колбеку: товари (`productName[]` тощо), ім'я покупця, адресу
-  доставки. Є `email`, `phone`, `amount`, `currency`, `createdDate` тощо
+- `checkout.js` завжди шле `apiVersion: "2"` (клієнтське значення ігнорується) — з ним
+  колбек містить розширені дані: `deliveryName`, `deliveryPhone`, `deliveryAddress`,
+  `clientName`, `products: [{ name, price, count }]`. З v1 цих полів немає
+- `deliveryAddress` — один рядок, частини через `"; "` (у `CHECK_STATUS` — через `", "`):
+  `"Нова Пошта; UKR; Київська; Ірпінь; Відділення №5 …"`. Структурованих полів НП немає
+- `clientName` часто `"NoCLIENT NAME"` — ім'я брати з `deliveryName`
+- Товари для листа і Meta все одно беремо зі сховища (там є ID і дані браузера)
 - Опційний форвард нормалізованого payload у Make.com, якщо задано `MAKE_WEBHOOK_URL`
 - `DEBUG_WFP_CALLBACK=1` — лог сирого тіла (cardPan/authCode маскуються)
 
@@ -62,8 +67,14 @@ netlify/functions/
 - `POST https://api.brevo.com/v3/smtp/email`, заголовок `api-key`, звичайний `fetch` без SDK
 - Шаблон за `BREVO_ORDER_CONFIRMATION_TEMPLATE_ID`; `sender` з `BREVO_SENDER_*`, якщо
   задано, інакше відправник шаблону
-- `params`: `orderNumber`, `orderDate`, `phone`, `products`, `total` (`products` і `total` —
-  готові рядки: `"Назва ×2 — 400.00, ..."`, `"1250.00 UAH"`)
+- `params`: `orderNumber`, `orderDate`, `recipientName`, `phone`, `deliveryAddress`,
+  `products`, `total` (`products` і `total` — готові рядки: `"Назва ×2 — 400.00, ..."`,
+  `"1250.00 UAH"`)
+  - `recipientName` = `deliveryName`, `phone` = `deliveryPhone` або телефон платника,
+    якщо доставку не заповнено
+  - `deliveryAddress` — через `formatDeliveryAddress` (`"; "` → `", "`, без `UKR`)
+- Шаблон (ID 1) зроблено в Drag & Drop редакторі Brevo — правити лише там: оновлення
+  `htmlContent` через API відбирає доступ до D&D-редактора
 - В акаунті Brevo **вимкнено блокування невідомих IP** — інакше Netlify Functions
   (динамічні IP) отримують 401
 
