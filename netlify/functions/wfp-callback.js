@@ -22,9 +22,6 @@ function hmacMd5Hex(message, secret) {
 // Безпечний String
 const s = (v) => (v == null ? "" : String(v));
 
-// WFP інколи присилає productName/productCount/productPrice як масив, інколи як одне значення
-const toArray = (v) => (Array.isArray(v) ? v : v != null && v !== "" ? [v] : []);
-
 // Надійне читання тіла з підтримкою base64 і "кривих" content-type
 async function readBodyFlexible(event) {
   let raw = event.body || "";
@@ -276,58 +273,9 @@ export async function handler(event) {
     }
   }
 
-  // 7) Опційний форвард нормалізованого payload у зовнішню автоматизацію (Make.com тощо).
-  // Вимкнено за замовчуванням — активується лише якщо задано MAKE_WEBHOOK_URL в ENV.
-  const makeUrl = process.env.MAKE_WEBHOOK_URL || "";
-  if (makeUrl) {
-    const forwardPayload = {
-      provider: "wayforpay",
-      ok: success && isSignatureValid,
-      signatureValid: isSignatureValid,
-      merchantAccount,
-      orderReference,
-      amount,
-      currency,
-      transactionStatus,
-      reason: s(data.reason),
-      reasonCode,
-      authCode,
-      cardPan,
-      cardType: s(data.cardType),
-      issuerBankCountry: s(data.issuerBankCountry),
-      issuerBankName: s(data.issuerBankName),
-      createdDate: s(data.createdDate),
-      processingDate: s(data.processingDate),
-      settlementDate: s(data.settlementDate),
-      clientFirstName: s(data.clientFirstName),
-      clientLastName: s(data.clientLastName),
-      clientEmail: s(data.email || data.clientEmail),
-      clientPhone: s(data.phone || data.clientPhone),
-      productName: toArray(data.productName),
-      productCount: toArray(data.productCount),
-      productPrice: toArray(data.productPrice),
-      deliveryList: s(data.deliveryList),
-      alternativeCurrency: s(data.alternativeCurrency),
-      alternativeAmount: s(data.alternativeAmount),
-      raw: data,
-    };
-
-    try {
-      await fetch(makeUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(forwardPayload),
-      });
-    } catch (e) {
-      console.error("Forward to Make failed:", e);
-    }
-  } else if (DEBUG) {
-    console.warn("MAKE_WEBHOOK_URL is not set — skipping forward to Make");
-  }
-
   await sheetsTask;
 
-  // 8) Відповідь WFP
+  // 7) Відповідь WFP
   return {
     statusCode: 200,
     headers: { ...cors, "Content-Type": "application/json" },

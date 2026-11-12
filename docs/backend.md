@@ -62,7 +62,6 @@ netlify/functions/
 - Товари для листа і Meta все одно беремо зі сховища (там є ID і дані браузера)
 - Google Sheets: будь-який статус з валідним підписом → `utils/google-sheets.js`
   (див. нижче). Іде паралельно з Meta/Brevo, функція чекає його перед ACK
-- Опційний форвард нормалізованого payload у Make.com, якщо задано `MAKE_WEBHOOK_URL`
 - `DEBUG_WFP_CALLBACK=1` — лог сирого тіла (cardPan/authCode маскуються)
 
 ## Email (Brevo) — `utils/brevo.js`

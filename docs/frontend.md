@@ -8,14 +8,13 @@ CORS, тож інший домен — не проблема (на відмін�
 ```
 src/frontend/
 ├── cart.js                   # entry point → dist/cart.js
-├── utils/
-│   ├── cart-storage.js       # кошик у localStorage з TTL 3 дні
-│   ├── wfp.js                # buildWfpPayload, postViaForm (fallback-форма на WFP)
-│   ├── wfp.test.js           # vitest для wfp.js
-│   ├── meta-pixel.js         # безпечні події Meta Pixel (AddToCart, InitiateCheckout)
-│   ├── meta-pixel.test.js    # vitest для meta-pixel.js
-│   └── fetch-with-retry.js   # fetch з exponential backoff (4xx не ретраїться)
-└── styles/                   # кастомні стилі кошика, окремо від Webflow (поки порожньо)
+└── utils/
+    ├── cart-storage.js       # кошик у localStorage з TTL 3 дні
+    ├── wfp.js                # buildWfpPayload, postViaForm (fallback-форма на WFP)
+    ├── wfp.test.js           # vitest для wfp.js
+    ├── meta-pixel.js         # безпечні події Meta Pixel (AddToCart, InitiateCheckout)
+    ├── meta-pixel.test.js    # vitest для meta-pixel.js
+    └── fetch-with-retry.js   # fetch з exponential backoff (4xx не ретраїться)
 ```
 
 ## cart.js
