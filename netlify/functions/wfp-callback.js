@@ -9,6 +9,7 @@ import crypto from "crypto";
 import { sendOrderConfirmationEmail } from "./utils/brevo.js";
 import { getOrder, getOrderItems, markEmailSent } from "./utils/order-store.js";
 import { sendPurchaseEvent } from "./utils/meta-capi.js";
+import { sendOrderToSheets } from "./utils/google-sheets.js";
 
 // Дебаг-лог вмикається лише явно через ENV DEBUG_WFP_CALLBACK=1
 const DEBUG = process.env.DEBUG_WFP_CALLBACK === "1";
@@ -188,6 +189,18 @@ export async function handler(event) {
     }
   }
 
+  // 4a) Google Sheets — будь-який статус з валідним підписом (скрипт сам розкладає
+  // по аркушах "success" / "no success" і відсікає дублі Approved). Йде паралельно
+  // з Meta/Brevo, чекаємо перед ACK; збій ACK не блокує
+  const sheetsTask = isSignatureValid
+    ? sendOrderToSheets(data)
+        .then((result) => {
+          if (result?.skipped) console.warn("Google Sheets skipped:", result.reason, { orderReference });
+          else console.log("Google Sheets order sent", { orderReference, result: result?.result });
+        })
+        .catch((e) => console.error("Google Sheets send failed:", e))
+    : Promise.resolve();
+
   // 5) Збираємо ACK для WFP (обов'язкова відповідь)
   const status = "accept";
   const time = Math.floor(Date.now() / 1000);
@@ -311,6 +324,8 @@ export async function handler(event) {
   } else if (DEBUG) {
     console.warn("MAKE_WEBHOOK_URL is not set — skipping forward to Make");
   }
+
+  await sheetsTask;
 
   // 8) Відповідь WFP
   return {

@@ -18,6 +18,7 @@ netlify/functions/
     ├── order-store.js   # Netlify Blobs: товари замовлення, позначка "лист надіслано"
     ├── brevo.js         # Brevo Transactional Email API
     ├── meta-capi.js     # Meta Conversions API: подія Purchase
+    ├── google-sheets.js # форвард колбеку в Google Apps Script (таблиця замовлень)
     └── cors.js          # CORS allow-list з кількох доменів
 ```
 
@@ -59,6 +60,8 @@ netlify/functions/
   `"Нова Пошта; UKR; Київська; Ірпінь; Відділення №5 …"`. Структурованих полів НП немає
 - `clientName` часто `"NoCLIENT NAME"` — ім'я брати з `deliveryName`
 - Товари для листа і Meta все одно беремо зі сховища (там є ID і дані браузера)
+- Google Sheets: будь-який статус з валідним підписом → `utils/google-sheets.js`
+  (див. нижче). Іде паралельно з Meta/Brevo, функція чекає його перед ACK
 - Опційний форвард нормалізованого payload у Make.com, якщо задано `MAKE_WEBHOOK_URL`
 - `DEBUG_WFP_CALLBACK=1` — лог сирого тіла (cardPan/authCode маскуються)
 
@@ -98,6 +101,22 @@ netlify/functions/
   але й не повторюється (якщо лист пішов, запис уже `sent`)
 - `META_TEST_EVENT_CODE` → подія видна в Events Manager → Test events; у проді не задавати
 
+## Google Sheets — `utils/google-sheets.js`
+
+Таблицю замовлень веде Google Apps Script (веб-застосунок, `doPost`): `Approved` → аркуш
+`success` (дубль за `orderReference` пропускається), інші статуси → `no success`, кожен
+запит — у `_wayforpay_log`. Скрипт читає поля у форматі колбеку WFP, тож форвардимо їх
+під тими самими іменами (whitelist `FORWARDED_FIELDS`; `cardPan`, `authCode`, підпис WFP
+не передаються).
+
+- `POST GOOGLE_SHEETS_WEBHOOK_URL` (`.../exec`), JSON; `/exec` відповідає 302 — `fetch`
+  іде за редиректом. Таймаут 7 с
+- Apps Script не бачить заголовків, тому спільний секрет — поле `secret` у тілі
+  (`GOOGLE_SHEETS_WEBHOOK_SECRET` = `SECRET_KEY` у скрипті). Скрипт має звіряти його і
+  видаляти з `data` до `logRawPayload_`, інакше секрет потрапить у лог-аркуш
+- Відповідь скрипта `error: ...` або не-2xx → error у лозі; ACK для WFP не блокує
+- Немає env → warn `Google Sheets skipped`
+
 ## Товари замовлення — Netlify Blobs (`utils/order-store.js`)
 
 Потрібно, бо WFP не повертає товари в колбеку. Store `orders`, ключ — `orderReference`.
@@ -133,6 +152,7 @@ netlify/functions/
 | Purchase у Meta | `Meta CAPI Purchase sent` з `eventsReceived` |
 | Немає env Meta | warn `Meta CAPI Purchase skipped` |
 | Повторний колбек | `order already processed (email + Meta Purchase), skipping` |
+| Запис у Google Sheets | `Google Sheets order sent` / error `Google Sheets send failed` |
 | Помилка Brevo / Meta / сховища | error `Brevo ... failed` / `Meta CAPI Purchase failed` / `Order store ... failed` |
 
 ## Документація WFP
