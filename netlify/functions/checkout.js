@@ -6,6 +6,7 @@ import { validateWfpPayload } from "./utils/validate-wfp.js";
 import { saveOrderWithUniqueReference } from "./utils/order-store.js";
 import { generateOrderReference } from "./utils/order-reference.js";
 import { getCorsHeaders } from "./utils/cors.js";
+import { getClientContext } from "./utils/meta-capi.js";
 
 export async function handler(event) {
   const cors = getCorsHeaders(event);
@@ -86,7 +87,13 @@ export async function handler(event) {
     // оплату — тоді номер без перевірки на збіг, а лист піде без товарів
     let orderReference;
     try {
-      orderReference = await saveOrderWithUniqueReference(event, wfp, generateOrderReference);
+      // + дані браузера покупця (IP, User-Agent, сторінка) для Meta CAPI Purchase у колбеку
+      orderReference = await saveOrderWithUniqueReference(
+        event,
+        wfp,
+        generateOrderReference,
+        getClientContext(event.headers),
+      );
     } catch (e) {
       console.error("Order store write failed:", e);
       orderReference = generateOrderReference();
@@ -99,7 +106,8 @@ export async function handler(event) {
       merchantDomainName: MERCHANT_DOMAIN,
       merchantTransactionType: wfp.merchantTransactionType || "AUTO",
       merchantTransactionSecureType: wfp.merchantTransactionSecureType || "AUTO",
-      apiVersion: wfp.apiVersion || "1",
+      // v2 — WFP повертає дані доставки (deliveryName/Phone/Address), clientName і products
+      apiVersion: "2",
       language: wfp.language || "EN",
       defaultPaymentSystem: wfp.defaultPaymentSystem || "card",
 

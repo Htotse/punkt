@@ -19,7 +19,11 @@
 | `BREVO_SENDER_EMAIL` / `BREVO_SENDER_NAME` | brevo | відправник (опційно) | задано |
 | `CORS_ALLOWED_ORIGIN` | checkout | allow-list через кому; порожньо = `*` | `https://punkt-otse.webflow.io,https://www.punktpublishing.com,https://punktpublishing.com` |
 | `CHECKOUT_ENDPOINT` | cart.js (build-time) | URL checkout-функції | не задано (дефолт — прод-URL) |
-| `MAKE_WEBHOOK_URL` | wfp-callback | форвард колбеку в Make.com | не задано (вимкнено) |
+| `META_PIXEL_ID` | wfp-callback (meta-capi) | піксель для CAPI Purchase — той самий ID, що в Webflow | **задати** |
+| `META_CAPI_TOKEN` | wfp-callback (meta-capi) | Access Token Conversions API | **задати** |
+| `META_TEST_EVENT_CODE` | wfp-callback (meta-capi) | код з Events Manager → Test events | не задавати в проді |
+| `GOOGLE_SHEETS_WEBHOOK_URL` | wfp-callback (google-sheets) | URL веб-застосунку Apps Script (`/exec`) | **задати** |
+| `GOOGLE_SHEETS_WEBHOOK_SECRET` | wfp-callback (google-sheets) | спільний секрет = `SECRET_KEY` у скрипті | **задати** |
 | `DEBUG_WFP_CALLBACK` | wfp-callback | `"1"` → лог сирого колбеку | не задавати в проді |
 
 Обов'язкові для email-підтвердження: `WFP_SERVICE_URL`, секрет WFP (через

@@ -4,6 +4,11 @@
 import { getCartWithExpiry, setCartWithExpiry } from "./utils/cart-storage.js";
 import { buildWfpPayload, postViaForm } from "./utils/wfp.js";
 import { fetchWithRetry } from "./utils/fetch-with-retry.js";
+import {
+  trackPixelEvent,
+  buildAddToCartParams,
+  trackInitiateCheckoutOnce,
+} from "./utils/meta-pixel.js";
 
 window.Webflow ||= [];
 window.Webflow.push(() => {
@@ -53,6 +58,7 @@ window.Webflow.push(() => {
     else cart.push({ name, authorName, imgSrc, price, cnt: 1, productPageLink });
 
     setCartWithExpiry(cart);
+    trackPixelEvent("AddToCart", buildAddToCartParams({ name, price, productPageLink }));
     renderCart();
     updateGlobalCartQuantity();
   }
@@ -250,6 +256,8 @@ window.Webflow.push(() => {
 
   async function submitOrder(btn) {
     const cart = getCartWithExpiry();
+    // до запиту на checkout: поки чекаємо відповідь бекенду, піксель встигає відправити подію
+    trackInitiateCheckoutOnce(cart);
     const wfpPayload = buildWfpPayload(cart);
 
     try {

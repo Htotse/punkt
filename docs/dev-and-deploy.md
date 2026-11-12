@@ -28,11 +28,11 @@ npm run dev
 `netlify dev` не завжди перезавантажує змінені модулі функцій — якщо поведінка не
 змінилась після правки, перезапустити сервер.
 
-### Тестова сторінка
+### Тест на живому Webflow
 
-`test/local-preview.html` — тестові товари (`.product`, `.js-add-to-cart`,
-`#cart-product-list`, `.checkout_button`) і заглушка `window.Webflow = { push: fn => fn() }`;
-підвантажує `../dist/cart.js`. Дає перевірити кошик і checkout без живого Webflow.
+Кошик тестується на живому Webflow-сайті: у Webflow → Custom code `src` скрипта
+тимчасово міняється з прод-URL на `<live-url>/cart.js` з тунелю `netlify dev --live`.
+Після тесту — повернути прод-URL.
 
 ### Тестові листи
 
@@ -42,14 +42,16 @@ npm run dev
 ## Юніт-тести
 
 `npm test` (vitest) — чисті функції: `src/frontend/utils/wfp.js`,
-`netlify/functions/utils/order-store.js`, `netlify/functions/utils/cors.js`,
-`netlify/functions/utils/order-reference.js`.
+`src/frontend/utils/meta-pixel.js`, `netlify/functions/utils/order-store.js`,
+`netlify/functions/utils/cors.js`, `netlify/functions/utils/order-reference.js`,
+`netlify/functions/utils/meta-capi.js`, `netlify/functions/utils/brevo.js`,
+`netlify/functions/utils/google-sheets.js` (`fetch` і env мокаються).
 DOM-логіку `cart.js` юніт-тестами не покриваємо (для цього — E2E).
 
 ## MCP-інструменти (local scope)
 
 - **Playwright MCP** (`claude mcp add playwright npx @playwright/mcp@latest`) — керувати
-  браузером: клікати по `test/local-preview.html`, заповнювати генератор тестового підпису
+  браузером: проходити кошик на сайті, заповнювати генератор тестового підпису
   WFP і читати обчислений `merchantSignature`
 - **Brevo MCP** (`claude mcp add --transport http brevo https://mcp.brevo.com/v1/brevo/mcp
   --header "Authorization: Bearer <token>"`) — токен у Brevo: Account → SMTP & API →

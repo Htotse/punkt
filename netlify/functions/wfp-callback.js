@@ -3,11 +3,14 @@
 // 1) Приймає POST від WFP (JSON / x-www-form-urlencoded / text/plain)
 // 2) Перевіряє підпис (HMAC-MD5) callback-а
 // 3) Відповідає WFP JSON'ом {orderReference, status:"accept", time, signature}
-// 4) Після успішної оплати — відправка email-підтвердження через Brevo (Transactional Email API)
+// 4) Будь-який статус з валідним підписом — запис у Google Sheets (Apps Script)
+// 5) Після успішної оплати — Meta CAPI Purchase і email-підтвердження через Brevo
 
 import crypto from "crypto";
 import { sendOrderConfirmationEmail } from "./utils/brevo.js";
 import { getOrder, getOrderItems, markEmailSent } from "./utils/order-store.js";
+import { sendPurchaseEvent } from "./utils/meta-capi.js";
+import { sendOrderToSheets } from "./utils/google-sheets.js";
 
 // Дебаг-лог вмикається лише явно через ENV DEBUG_WFP_CALLBACK=1
 const DEBUG = process.env.DEBUG_WFP_CALLBACK === "1";
@@ -19,9 +22,6 @@ function hmacMd5Hex(message, secret) {
 
 // Безпечний String
 const s = (v) => (v == null ? "" : String(v));
-
-// WFP інколи присилає productName/productCount/productPrice як масив, інколи як одне значення
-const toArray = (v) => (Array.isArray(v) ? v : v != null && v !== "" ? [v] : []);
 
 // Надійне читання тіла з підтримкою base64 і "кривих" content-type
 async function readBodyFlexible(event) {
@@ -87,6 +87,28 @@ async function readBodyFlexible(event) {
   return {};
 }
 
+// Повтор колбеку до позначки sent безпечний: event_id = orderReference, Meta відкине дубль.
+// Збій Meta не має впливати ні на лист, ні на ACK для WFP
+async function trackMetaPurchase({ orderReference, amount, currency, customerEmail, customerPhone, order }) {
+  try {
+    const metaResult = await sendPurchaseEvent({
+      orderReference,
+      amount,
+      currency,
+      email: customerEmail,
+      phone: customerPhone,
+      order,
+    });
+    if (metaResult?.skipped) {
+      console.warn("Meta CAPI Purchase skipped:", metaResult.reason, { orderReference });
+    } else {
+      console.log("Meta CAPI Purchase sent", { orderReference, eventsReceived: metaResult?.events_received });
+    }
+  } catch (e) {
+    console.error("Meta CAPI Purchase failed:", e);
+  }
+}
+
 export async function handler(event) {
   const cors = {
     "Access-Control-Allow-Origin": "*",
@@ -113,7 +135,8 @@ export async function handler(event) {
     const safeLog = { ...data };
     if (safeLog.cardPan) safeLog.cardPan = "<masked>";
     if (safeLog.authCode) safeLog.authCode = "<hidden>";
-    console.log("WFP callback raw (safe):", JSON.stringify(safeLog).slice(0, 2000));
+    console.log("WFP callback keys:", Object.keys(data).join(", "));
+    console.log("WFP callback raw (safe):", JSON.stringify(safeLog).slice(0, 4000));
   }
 
   // 2) Секрет — той самий live/test перемикач, що й у checkout.js
@@ -164,6 +187,18 @@ export async function handler(event) {
     }
   }
 
+  // 4a) Google Sheets — будь-який статус з валідним підписом (скрипт сам розкладає
+  // по аркушах "success" / "no success" і відсікає дублі Approved). Йде паралельно
+  // з Meta/Brevo, чекаємо перед ACK; збій ACK не блокує
+  const sheetsTask = isSignatureValid
+    ? sendOrderToSheets(data)
+        .then((result) => {
+          if (result?.skipped) console.warn("Google Sheets skipped:", result.reason, { orderReference });
+          else console.log("Google Sheets order sent", { orderReference, result: result?.result });
+        })
+        .catch((e) => console.error("Google Sheets send failed:", e))
+    : Promise.resolve();
+
   // 5) Збираємо ACK для WFP (обов'язкова відповідь)
   const status = "accept";
   const time = Math.floor(Date.now() / 1000);
@@ -181,13 +216,14 @@ export async function handler(event) {
 
   const success = transactionStatus === "Approved";
 
-  // 6) Email-підтвердження замовлення через Brevo — не має блокувати ACK-відповідь WFP
+  // 6) Meta CAPI Purchase + email-підтвердження через Brevo — збої не блокують ACK-відповідь WFP
   if (success && isSignatureValid) {
     const customerEmail = s(data.email || data.clientEmail);
     const customerPhone = s(data.phone || data.clientPhone);
 
-    // Товари беремо зі сховища (зберіг checkout.js): WFP не повертає їх у serviceUrl-колбеку.
-    // Імені покупця в листі немає — clientFirstName/clientLastName у колбеку теж відсутні
+    // Товари беремо зі сховища (зберіг checkout.js): там ще ціни/ID для Meta і дані браузера.
+    // З apiVersion 2 WFP шле й products, але без ID. clientName часто "NoCLIENT NAME" —
+    // ім'я в листі беремо з deliveryName
     let order = null;
     try {
       order = await getOrder(event, orderReference);
@@ -195,8 +231,13 @@ export async function handler(event) {
       console.error("Order store read failed:", e);
     }
 
+    // 6a) Meta CAPI Purchase — до markEmailSent, бо той стирає товари із запису
+    if (order?.status !== "sent") {
+      await trackMetaPurchase({ orderReference, amount, currency, customerEmail, customerPhone, order });
+    }
+
     if (order?.status === "sent") {
-      console.log("WFP callback: confirmation email already sent, skipping", { orderReference });
+      console.log("WFP callback: order already processed (email + Meta Purchase), skipping", { orderReference });
     } else if (customerEmail) {
       if (!order) {
         console.warn("WFP callback: order not found in store, sending email without products", { orderReference });
@@ -211,6 +252,12 @@ export async function handler(event) {
           amount,
           currency,
           items: getOrderItems(order),
+          // Доставка приходить лише з apiVersion "2" (задано в checkout.js)
+          delivery: {
+            name: s(data.deliveryName),
+            phone: s(data.deliveryPhone),
+            address: s(data.deliveryAddress),
+          },
         });
         console.log("Brevo order confirmation email sent", { orderReference, messageId: brevoResponse?.messageId });
 
@@ -227,56 +274,9 @@ export async function handler(event) {
     }
   }
 
-  // 7) Опційний форвард нормалізованого payload у зовнішню автоматизацію (Make.com тощо).
-  // Вимкнено за замовчуванням — активується лише якщо задано MAKE_WEBHOOK_URL в ENV.
-  const makeUrl = process.env.MAKE_WEBHOOK_URL || "";
-  if (makeUrl) {
-    const forwardPayload = {
-      provider: "wayforpay",
-      ok: success && isSignatureValid,
-      signatureValid: isSignatureValid,
-      merchantAccount,
-      orderReference,
-      amount,
-      currency,
-      transactionStatus,
-      reason: s(data.reason),
-      reasonCode,
-      authCode,
-      cardPan,
-      cardType: s(data.cardType),
-      issuerBankCountry: s(data.issuerBankCountry),
-      issuerBankName: s(data.issuerBankName),
-      createdDate: s(data.createdDate),
-      processingDate: s(data.processingDate),
-      settlementDate: s(data.settlementDate),
-      clientFirstName: s(data.clientFirstName),
-      clientLastName: s(data.clientLastName),
-      clientEmail: s(data.email || data.clientEmail),
-      clientPhone: s(data.phone || data.clientPhone),
-      productName: toArray(data.productName),
-      productCount: toArray(data.productCount),
-      productPrice: toArray(data.productPrice),
-      deliveryList: s(data.deliveryList),
-      alternativeCurrency: s(data.alternativeCurrency),
-      alternativeAmount: s(data.alternativeAmount),
-      raw: data,
-    };
+  await sheetsTask;
 
-    try {
-      await fetch(makeUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(forwardPayload),
-      });
-    } catch (e) {
-      console.error("Forward to Make failed:", e);
-    }
-  } else if (DEBUG) {
-    console.warn("MAKE_WEBHOOK_URL is not set — skipping forward to Make");
-  }
-
-  // 8) Відповідь WFP
+  // 7) Відповідь WFP
   return {
     statusCode: 200,
     headers: { ...cors, "Content-Type": "application/json" },

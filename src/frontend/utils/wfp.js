@@ -1,5 +1,7 @@
 // Хелпери для формування payload WayForPay (Purchase) та POST-фолбеку
 
+import { getProductId } from "./meta-pixel.js";
+
 const WFP_CURRENCY = "UAH";
 const WFP_DEFAULT_PSP = "card";
 const WFP_PAYMENT_SYSTEMS = "card;googlePay;applePay";
@@ -16,14 +18,17 @@ export function mapCartToWfpArrays(cart) {
   const productName = [];
   const productPrice = [];
   const productCount = [];
+  // ID товару для Meta CAPI Purchase — у WFP і в підпис не йде, checkout.js лише зберігає в Blobs
+  const productId = [];
 
   cart.forEach((item) => {
     productName.push(item.name);
     productPrice.push(toMoney(item.price));
     productCount.push(String(item.cnt));
+    productId.push(getProductId(item.productPageLink));
   });
 
-  return { productName, productPrice, productCount };
+  return { productName, productPrice, productCount, productId };
 }
 
 export function unixSeconds(date = new Date()) {
@@ -31,7 +36,7 @@ export function unixSeconds(date = new Date()) {
 }
 
 export function buildWfpPayload(cart) {
-  const { productName, productPrice, productCount } = mapCartToWfpArrays(cart);
+  const { productName, productPrice, productCount, productId } = mapCartToWfpArrays(cart);
   const total = cart.reduce((sum, item) => sum + item.price * item.cnt, 0);
 
   // формуємо payload без підпису й orderReference — бек їх згенерує
@@ -41,7 +46,7 @@ export function buildWfpPayload(cart) {
     merchantAuthType: "SimpleSignature",
     merchantTransactionType: "AUTO",
     merchantTransactionSecureType: "AUTO",
-    apiVersion: "1",
+    apiVersion: "2",
     language: "UA",
 
     orderDate: unixSeconds(),
@@ -51,6 +56,7 @@ export function buildWfpPayload(cart) {
     productName,
     productPrice,
     productCount,
+    productId,
 
     // UX/налаштування
     defaultPaymentSystem: WFP_DEFAULT_PSP,

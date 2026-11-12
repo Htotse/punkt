@@ -6,7 +6,8 @@
   `WFP_SECRET_KEY`, `WFP_TEST_MODE=false`), `WFP_SERVICE_URL`, Brevo-змінні,
   `CORS_ALLOWED_ORIGIN` з трьома доменами — див. [env.md](env.md)
 - [x] Brevo: вимкнено блокування невідомих IP, тестовий лист через шаблон доходить
-- [x] Шаблон листа: `orderNumber`, `orderDate`, `phone`, `products`, `total`
+- [x] Шаблон листа: `orderNumber`, `orderDate`, `recipientName`, `phone`,
+  `deliveryAddress`, `products`, `total`
 - [x] Товари в листі (Netlify Blobs) і захист від повторних листів
 
 ## Захист checkout (за пріоритетом)
@@ -43,6 +44,23 @@ HMAC-підпису, `cleanup-orders` (scheduled) не викликається 
 - [ ] `CART_PAGE_URL` у `cart.js` = `https://punkt-otse.webflow.io/cart`, редірект після
   додавання в кошик вимкнено — вирішити, чи вмикати і на якому домені
 - [ ] `DEBUG_WFP_CALLBACK` — переконатися, що в Netlify не задано
+- [ ] **Meta Pixel:** вказати `PIXEL_ID` **в одному місці** — Site settings → Apps &
+  Integrations → Meta Pixel **або** сніпет у Custom code → Head, не в обох (інакше дубль
+  PageView); ID товару береться з `data-product-page` (див.
+  [frontend.md](frontend.md#meta-pixel-meta-pixeljs)); перевірити через Meta Pixel
+  Helper: `PageView` на кожній сторінці, `AddToCart` на кнопці товару (не на «+»),
+  один `InitiateCheckout` до переходу на WFP
+- [ ] `data-product-page` у CMS веде на `punkt-otse.webflow.io` — замінити на прод-домен
+- [ ] **Meta CAPI:** ~~задати в Netlify `META_PIXEL_ID` і `META_CAPI_TOKEN`~~ — задано
+  (2026-11-12, контекст all; `META_PIXEL_ID` має збігатися з пікселем у Webflow); перевірити Purchase через Events Manager → Test events з тимчасовим
+  `META_TEST_EVENT_CODE`, після перевірки — видалити змінну й передеплоїти. Тестовий
+  піксель від таргетолога → замінити на піксель Punkt в обох місцях (Webflow і Netlify)
+
+- [ ] **Google Sheets:** задати в Netlify `GOOGLE_SHEETS_WEBHOOK_URL` (деплой Apps Script,
+  `/exec`) і `GOOGLE_SHEETS_WEBHOOK_SECRET` (= `SECRET_KEY` у скрипті); переконатися, що
+  скрипт звіряє `secret` і видаляє його з `data` до `logRawPayload_` (див.
+  [backend.md](backend.md#google-sheets--utilsgoogle-sheetsjs)); після тестової оплати —
+  рядок в аркуші `success` і `Google Sheets order sent` у логах
 
 ## Перевірка після деплою
 

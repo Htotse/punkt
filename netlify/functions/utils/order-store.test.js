@@ -24,6 +24,26 @@ describe("buildOrderRecord", () => {
   });
 });
 
+describe("buildOrderRecord: дані для Meta CAPI", () => {
+  it("зберігає productId і дані браузера покупця", () => {
+    const record = buildOrderRecord(
+      { ...wfp, productId: ["/books/a", "/books/b"] },
+      1000,
+      { clientIp: "1.2.3.4", clientUserAgent: "UA", eventSourceUrl: "https://punktpublishing.com/cart" },
+    );
+    expect(record.productId).toEqual(["/books/a", "/books/b"]);
+    expect(record.clientIp).toBe("1.2.3.4");
+    expect(record.clientUserAgent).toBe("UA");
+    expect(record.eventSourceUrl).toBe("https://punktpublishing.com/cart");
+  });
+
+  it("відкидає productId іншої довжини, нерядкові ID замінює порожніми", () => {
+    expect(buildOrderRecord({ ...wfp, productId: ["/books/a"] }, 1000).productId).toBeUndefined();
+    expect(buildOrderRecord({ ...wfp, productId: "x" }, 1000).productId).toBeUndefined();
+    expect(buildOrderRecord({ ...wfp, productId: [{ evil: 1 }, "/books/b"] }, 1000).productId).toEqual(["", "/books/b"]);
+  });
+});
+
 describe("getOrderItems", () => {
   it("збирає товари в однаковому порядку з усіх масивів", () => {
     expect(getOrderItems(buildOrderRecord(wfp))).toEqual([

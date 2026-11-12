@@ -30,7 +30,7 @@
 | Задача | Файл |
 |---|---|
 | Netlify Functions: checkout, WFP-колбек, підписи, Brevo, Netlify Blobs, CORS | [docs/backend.md](docs/backend.md) |
-| `cart.js`, Parcel, вбудовування у Webflow, тестова HTML-сторінка | [docs/frontend.md](docs/frontend.md) |
+| `cart.js`, Parcel, вбудовування у Webflow | [docs/frontend.md](docs/frontend.md) |
 | Env-змінні: де використовуються, що обов'язкове, що задано в Netlify | [docs/env.md](docs/env.md) |
 | Локальна розробка, тести, MCP-інструменти, деплой | [docs/dev-and-deploy.md](docs/dev-and-deploy.md) |
 | Перед продом / відкриті TODO / захист checkout | [docs/prod-checklist.md](docs/prod-checklist.md) |

@@ -48,6 +48,17 @@ function formatOrderDate(createdDate) {
   return new Date(n * 1000).toLocaleDateString("uk-UA");
 }
 
+// WFP deliveryAddress (apiVersion 2): частини через "; " у колбеку, через ", " у CHECK_STATUS.
+// Нормалізуємо до ", ", прибираємо код країни "UKR"
+export function formatDeliveryAddress(deliveryAddress) {
+  if (!deliveryAddress) return "";
+  return String(deliveryAddress)
+    .split(/;\s*/)
+    .map((part) => part.trim())
+    .filter((part) => part && part !== "UKR")
+    .join(", ");
+}
+
 export async function sendOrderConfirmationEmail({
   to,
   phone,
@@ -56,6 +67,7 @@ export async function sendOrderConfirmationEmail({
   amount,
   currency,
   items = [],
+  delivery = {},
 }) {
   const templateId = process.env.BREVO_ORDER_CONFIRMATION_TEMPLATE_ID;
   const senderEmail = process.env.BREVO_SENDER_EMAIL;
@@ -68,7 +80,11 @@ export async function sendOrderConfirmationEmail({
     params: {
       orderNumber: orderReference,
       orderDate: formatOrderDate(createdDate),
-      phone,
+      // Шаблон показує "Отримувач" і "Номер телефону" — це одержувач доставки;
+      // без доставки — телефон платника
+      recipientName: delivery.name || "",
+      phone: delivery.phone || phone,
+      deliveryAddress: formatDeliveryAddress(delivery.address),
       products: formatProducts(items),
       total: `${amount} ${currency}`.trim(),
     },
