@@ -118,7 +118,9 @@ netlify/functions/
 
 ## Товари замовлення — Netlify Blobs (`utils/order-store.js`)
 
-Потрібно, бо WFP не повертає товари в колбеку. Store `orders`, ключ — `orderReference`.
+З `apiVersion: "2"` WFP повертає в колбеку `products`, але без ID товарів і без даних
+браузера — їх для Meta CAPI беремо звідси; тут же позначка `sent` проти повторних листів.
+Store `orders`, ключ — `orderReference`.
 
 - `checkout.js` → `saveOrderWithUniqueReference` → `saveOrder` (`onlyIfNew`: збіг номера →
   новий номер); збій лише логується
@@ -152,6 +154,7 @@ netlify/functions/
 | Немає env Meta | warn `Meta CAPI Purchase skipped` |
 | Повторний колбек | `order already processed (email + Meta Purchase), skipping` |
 | Запис у Google Sheets | `Google Sheets order sent` / error `Google Sheets send failed` |
+| Немає env Google Sheets | warn `Google Sheets skipped` |
 | Помилка Brevo / Meta / сховища | error `Brevo ... failed` / `Meta CAPI Purchase failed` / `Order store ... failed` |
 
 ## Документація WFP

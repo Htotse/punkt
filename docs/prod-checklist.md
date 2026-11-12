@@ -6,7 +6,8 @@
   `WFP_SECRET_KEY`, `WFP_TEST_MODE=false`), `WFP_SERVICE_URL`, Brevo-змінні,
   `CORS_ALLOWED_ORIGIN` з трьома доменами — див. [env.md](env.md)
 - [x] Brevo: вимкнено блокування невідомих IP, тестовий лист через шаблон доходить
-- [x] Шаблон листа: `orderNumber`, `orderDate`, `phone`, `products`, `total`
+- [x] Шаблон листа: `orderNumber`, `orderDate`, `recipientName`, `phone`,
+  `deliveryAddress`, `products`, `total`
 - [x] Товари в листі (Netlify Blobs) і захист від повторних листів
 
 ## Захист checkout (за пріоритетом)
@@ -54,6 +55,12 @@ HMAC-підпису, `cleanup-orders` (scheduled) не викликається 
   `META_CAPI_TOKEN`; перевірити Purchase через Events Manager → Test events з тимчасовим
   `META_TEST_EVENT_CODE`, після перевірки — видалити змінну й передеплоїти. Тестовий
   піксель від таргетолога → замінити на піксель Punkt в обох місцях (Webflow і Netlify)
+
+- [ ] **Google Sheets:** задати в Netlify `GOOGLE_SHEETS_WEBHOOK_URL` (деплой Apps Script,
+  `/exec`) і `GOOGLE_SHEETS_WEBHOOK_SECRET` (= `SECRET_KEY` у скрипті); переконатися, що
+  скрипт звіряє `secret` і видаляє його з `data` до `logRawPayload_` (див.
+  [backend.md](backend.md#google-sheets--utilsgoogle-sheetsjs)); після тестової оплати —
+  рядок в аркуші `success` і `Google Sheets order sent` у логах
 
 ## Перевірка після деплою
 

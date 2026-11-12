@@ -3,7 +3,8 @@
 // 1) Приймає POST від WFP (JSON / x-www-form-urlencoded / text/plain)
 // 2) Перевіряє підпис (HMAC-MD5) callback-а
 // 3) Відповідає WFP JSON'ом {orderReference, status:"accept", time, signature}
-// 4) Після успішної оплати — Meta CAPI Purchase і email-підтвердження через Brevo
+// 4) Будь-який статус з валідним підписом — запис у Google Sheets (Apps Script)
+// 5) Після успішної оплати — Meta CAPI Purchase і email-підтвердження через Brevo
 
 import crypto from "crypto";
 import { sendOrderConfirmationEmail } from "./utils/brevo.js";
