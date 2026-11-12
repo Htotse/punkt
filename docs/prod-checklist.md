@@ -41,8 +41,8 @@ HMAC-підпису, `cleanup-orders` (scheduled) не викликається 
 - [ ] **Перевірити `WFP_MERCHANT_DOMAIN`** на першій реальній оплаті: у кабінеті WFP
   вказано `https://punktpublishing.com`, у Netlify — `punktpublishing.com` (без протоколу,
   як у документації). Якщо WFP відхилить підпис/домен — спробувати з протоколом
-- [ ] `CART_PAGE_URL` у `cart.js` = `https://punkt-otse.webflow.io/cart`, редірект після
-  додавання в кошик вимкнено — вирішити, чи вмикати і на якому домені
+- [x] Редірект після додавання в кошик увімкнено, `CART_PAGE_URL` = відносний `/cart`
+  (працює на будь-якому домені) — переконатися, що сторінка кошика у Webflow має slug `cart`
 - [ ] `DEBUG_WFP_CALLBACK` — переконатися, що в Netlify не задано
 - [ ] **Meta Pixel:** вказати `PIXEL_ID` **в одному місці** — Site settings → Apps &
   Integrations → Meta Pixel **або** сніпет у Custom code → Head, не в обох (інакше дубль

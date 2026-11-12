@@ -21,9 +21,9 @@ window.Webflow.push(() => {
   const CHECKOUT_ENDPOINT =
     process.env.CHECKOUT_ENDPOINT || "https://punkt-shop.netlify.app/.netlify/functions/checkout";
 
-  // Сторінка кошика, куди редіректити після додавання товару (заповнити перед деплоєм)
-  // const CART_PAGE_URL = "https://www.saule-objects.com/cart";
-  const CART_PAGE_URL = "https://punkt-otse.webflow.io/cart";
+  // Сторінка кошика, куди редіректити після додавання товару. Відносний шлях —
+  // працює однаково на webflow.io-стейджингу і на прод-домені.
+  const CART_PAGE_URL = "/cart";
 
   // ==============================
   // ДОДАВАННЯ / ІНКРЕМЕНТ / ДЕКРЕМЕНТ / ВИДАЛЕННЯ
@@ -32,7 +32,7 @@ window.Webflow.push(() => {
     const product = button?.closest(".product");
     if (!product) {
       console.warn("addToCart: .product не знайдено для кнопки", button);
-      return;
+      return false;
     }
 
     const rawName = product.dataset.name;
@@ -44,7 +44,7 @@ window.Webflow.push(() => {
 
     if (!rawName || Number.isNaN(price)) {
       console.warn("addToCart: відсутні name/price у data-* атрибутах", { rawName, rawPrice });
-      return;
+      return false;
     }
 
     const name = rawName;
@@ -61,6 +61,7 @@ window.Webflow.push(() => {
     trackPixelEvent("AddToCart", buildAddToCartParams({ name, price, productPageLink }));
     renderCart();
     updateGlobalCartQuantity();
+    return true;
   }
 
   // Делегування кліків: додати у кошик
@@ -68,13 +69,14 @@ window.Webflow.push(() => {
     const btn = e.target.closest(".js-add-to-cart");
     if (!btn) return;
     if (btn.tagName === "A") e.preventDefault();
-    addToCart(btn);
-    // редірект на сторінку кошика після додавання (лише якщо URL заданий)
-    // if (CART_PAGE_URL) {
-    //   setTimeout(() => {
-    //     window.location.href = CART_PAGE_URL;
-    //   }, 100);
-    // }
+    const added = addToCart(btn);
+    // редірект на сторінку кошика після додавання; невелика затримка — щоб Meta Pixel
+    // встиг відправити AddToCart до переходу
+    if (added && CART_PAGE_URL) {
+      setTimeout(() => {
+        window.location.href = CART_PAGE_URL;
+      }, 100);
+    }
   });
 
   function updateItemQuantityInDom(itemIndex, updatedCart) {

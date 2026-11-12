@@ -30,7 +30,9 @@ src/frontend/
   (через `fetchWithRetry`) → редірект на `payUrl` або `postViaForm`
 - `CHECKOUT_ENDPOINT` — `process.env.CHECKOUT_ENDPOINT`, який Parcel підставляє **під час
   білду**; без нього — `https://punkt-shop.netlify.app/.netlify/functions/checkout`
-- `CART_PAGE_URL` задано, але редірект після додавання в кошик закоментований
+- Після успішного додавання в кошик (`.js-add-to-cart`) — редірект на `CART_PAGE_URL`
+  (відносний `/cart`) із затримкою 100 мс, щоб Meta Pixel встиг відправити `AddToCart`.
+  Якщо товар не додано (немає `.product` чи `data-name`/`data-price`) — редіректу немає
 
 ## Meta Pixel (`meta-pixel.js`)
 
