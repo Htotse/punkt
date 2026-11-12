@@ -106,7 +106,8 @@ netlify/functions/
 `success` (дубль за `orderReference` пропускається), інші статуси → `no success`, кожен
 запит — у `_wayforpay_log`. Скрипт читає поля у форматі колбеку WFP, тож форвардимо їх
 під тими самими іменами (whitelist `FORWARDED_FIELDS`; `cardPan`, `authCode`, підпис WFP
-не передаються).
+не передаються). Коментар покупця — `clientComment` (лише в таблицю, не в лист); назву
+ключа взято з неофіційних джерел — підтвердити на реальному колбеку.
 
 - `POST GOOGLE_SHEETS_WEBHOOK_URL` (`.../exec`), JSON; `/exec` відповідає 302 — `fetch`
   іде за редиректом. Таймаут 7 с

@@ -28,6 +28,7 @@ const FORWARDED_FIELDS = [
   "productCount",
   "productPrice",
   "clientFields",
+  "clientComment",
 ];
 
 export function buildSheetsPayload(callbackData, secret) {

@@ -16,6 +16,7 @@ const callback = {
   deliveryPhone: "380679999999",
   deliveryAddress: "Нова Пошта; UKR; Київська; Бориспіль; Відділення №1",
   products: [{ name: "Енеїда", price: 390, count: 1 }],
+  clientComment: "Подзвоніть перед відправкою",
   createdDate: 1762858800,
 };
 
@@ -28,6 +29,7 @@ describe("buildSheetsPayload", () => {
       amount: 390,
       deliveryPhone: "380679999999",
       products: [{ name: "Енеїда", price: 390, count: 1 }],
+      clientComment: "Подзвоніть перед відправкою",
       secret: "s3cret",
     });
     expect(payload).not.toHaveProperty("cardPan");
